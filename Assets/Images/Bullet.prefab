@@ -10,8 +10,9 @@ GameObject:
   m_Component:
   - component: {fileID: 6492561334469906077}
   - component: {fileID: 6040708899404783248}
+  - component: {fileID: 598123867581785355}
   m_Layer: 0
-  m_Name: "ChatGPT Image 2025\u5E7411\u670822\u65E5 17_44_52"
+  m_Name: Bullet
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -90,3 +91,16 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!114 &598123867581785355
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6660546270597695376}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6e0c5ae5783230a45a447f319c8dbbcd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BulletMove
+  Speed: 5

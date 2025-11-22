@@ -2,26 +2,41 @@ using UnityEngine;
 
 public class BulletController : MonoBehaviour
 {
-    public Transform Player;
-    public GameObject Bullet;
+    public PoolManager pool;
+    public Transform player;
+    public float FireInterval = 0.2f;
+    public float fireTimer = 0f;
+
     InputSystem_Actions input;
 
-    private void Awake()
+    void Awake()
     {
         input = new InputSystem_Actions();
     }
 
-    private void OnEnable()
+    void OnEnable()
     {
-        input.Player.Attack.Enable();
+        input.Enable();
     }
 
-    // Update is called once per frame
+    void OnDisable()
+    {
+        input.Disable();
+    }
+
     void Update()
     {
-        if(input.Player.Attack.WasPressedThisFrame())
+        fireTimer += Time.deltaTime;
+
+        if (input.Player.Attack.IsPressed() && fireTimer >= FireInterval)
         {
-            Instantiate(Bullet, Player.position, Quaternion.identity);
+            // Pool から弾オブジェクトを取得
+            GameObject bullet = pool.GetGameObject(
+                player.position,
+                Quaternion.identity
+            );
+
+            fireTimer = 0f;
         }
     }
 }
