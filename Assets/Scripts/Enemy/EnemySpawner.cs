@@ -4,49 +4,20 @@ using UnityEngine;
 
 public class EnemySpawner : MonoBehaviour
 {
-    [Header("Spawn Settings")]
-    public float appearanceTime = 3.0f;
-
-    [Tooltip("ProjectビューのPrefab（青アイコン）を入れてください。HierarchyのオブジェクトはNG。")]
-    public GameObject enemyPrefab;
-
+    public float appearanceTime = 3f;
+    public GameObject enemyPrefab;      // ProjectビューのPrefab（青）
     public Transform player;
 
     readonly List<GameObject> spawned = new List<GameObject>();
-    Coroutine routine;
 
-    void OnEnable()
+    void Awake()
     {
-        Debug.Log($"[Spawner] OnEnable active={gameObject.activeInHierarchy} enabled={enabled}");
-    }
-
-    void OnDisable()
-    {
-        Debug.Log($"[Spawner] OnDisable active={gameObject.activeInHierarchy} enabled={enabled}");
-    }
-
-    void OnDestroy()
-    {
-        Debug.Log("[Spawner] OnDestroy");
+        Debug.Log($"[Spawner] Awake obj='{gameObject.name}' scene='{gameObject.scene.name}'");
     }
 
     void Start()
     {
-        Debug.Log($"[Spawner] Start time={Time.time:F2} timeScale={Time.timeScale} " +
-                  $"enemyPrefab={(enemyPrefab ? enemyPrefab.name : "null")} " +
-                  $"prefabSceneValid={(enemyPrefab != null && enemyPrefab.scene.IsValid())}");
-
-        if (enemyPrefab != null && enemyPrefab.scene.IsValid())
-        {
-            Debug.LogError("[Spawner] enemyPrefab が Hierarchy上のオブジェクトです。ProjectビューのPrefab（青アイコン）に差し替えてください。");
-        }
-
-        routine ??= StartCoroutine(SpawnLoop());
-    }
-
-    void Update()
-    {
-        CleanupList();
+        StartCoroutine(SpawnLoop());
     }
 
     IEnumerator SpawnLoop()
@@ -57,61 +28,43 @@ public class EnemySpawner : MonoBehaviour
         {
             loop++;
 
-            Debug.Log($"[Spawner] Loop={loop} time={Time.time:F2} timeScale={Time.timeScale} " +
-                      $"active={gameObject.activeInHierarchy} enabled={enabled}");
-
             if (enemyPrefab == null)
             {
-                Debug.LogError($"[Spawner] Loop={loop} enemyPrefab is NULL !!! " +
-                               $"(Hierarchy参照をDestroyしてnull化してる可能性大)");
+                Debug.LogError($"[Spawner] Loop={loop} enemyPrefab is NULL (ProjectのPrefabを入れてください)");
                 yield return new WaitForSeconds(1f);
                 continue;
             }
 
-            if (enemyPrefab.scene.IsValid())
+            if (player == null || Camera.main == null)
             {
-                Debug.LogError($"[Spawner] Loop={loop} enemyPrefab is SCENE OBJECT (Hierarchy参照) name={enemyPrefab.name}. " +
-                               $"→ ProjectビューのPrefab（青）に差し替えてください。");
-            }
-
-            if (player == null)
-            {
-                Debug.LogError($"[Spawner] Loop={loop} player is NULL (Inspectorで設定してください)");
+                Debug.LogError($"[Spawner] Loop={loop} player or Camera.main is NULL");
                 yield return new WaitForSeconds(1f);
                 continue;
             }
 
-            Camera cam = Camera.main;
-            if (cam == null)
-            {
-                Debug.LogError($"[Spawner] Loop={loop} Camera.main is NULL (MainCameraタグを確認)");
-                yield return new WaitForSeconds(1f);
-                continue;
-            }
-
-            Vector3 pos = GetSpawnPosition(cam);
-            Debug.Log($"[Spawner] Loop={loop} Instantiate at {pos}");
+            Vector3 pos = GetSpawnPosition(Camera.main);
 
             GameObject e = Instantiate(enemyPrefab, pos, Quaternion.identity);
             spawned.Add(e);
 
-            // 生成した個体を EnemyController に渡す
+            // スポーン個体に EnemyController が居るか確認して紐付ける
             var ec = e.GetComponentInChildren<EnemyController>(true);
-            if (ec != null)
-                ec.SetOwner(this, e);
+            if (ec == null)
+            {
+                Debug.LogError($"[Spawner] ERROR: Spawned enemy has NO EnemyController! prefab={enemyPrefab.name} instance={e.name}");
+            }
             else
-                Debug.LogWarning($"[Spawner] EnemyController が見つかりません: {e.name}");
+            {
+                ec.SetOwner(this, e);
+                Debug.Log($"[Spawner] OK: Spawned '{e.name}' rootPos={e.transform.position} ctrlObj='{ec.gameObject.name}' ctrlPos={ec.transform.position}");
+            }
 
-            Debug.Log($"[Spawner] Loop={loop} Spawned name={e.name} id={e.GetInstanceID()} total={spawned.Count}");
+            Debug.Log($"[Spawner] Spawned loop={loop} enemy='{e.name}' total={spawned.Count}");
 
-            Debug.Log($"[Spawner] Loop={loop} WaitForSeconds({appearanceTime})");
             yield return new WaitForSeconds(appearanceTime);
-
-            Debug.Log($"[Spawner] Loop={loop} AfterWait time={Time.time:F2}");
         }
     }
 
-    // ★EnemyControllerが呼ぶ：リストから外して、その個体だけ消す
     public void KillSpawned(GameObject enemyInstance, float delay = 0f)
     {
         if (enemyInstance == null) return;
@@ -125,20 +78,22 @@ public class EnemySpawner : MonoBehaviour
     void CleanupList()
     {
         for (int i = spawned.Count - 1; i >= 0; i--)
-        {
             if (spawned[i] == null) spawned.RemoveAt(i);
-        }
+    }
+
+    void Update()
+    {
+        CleanupList();
     }
 
     Vector3 GetSpawnPosition(Camera cam)
     {
-        float height = cam.orthographicSize;
-        float width = height * cam.aspect;
-
+        float h = cam.orthographicSize;
+        float w = h * cam.aspect;
         float cx = cam.transform.position.x;
 
-        float x = Random.Range(cx - width, cx + width);
-        float y = player.position.y + Random.Range(0f, height);
+        float x = Random.Range(cx - w, cx + w);
+        float y = player.position.y + Random.Range(0f, h);
 
         return new Vector3(x, y, 0f);
     }

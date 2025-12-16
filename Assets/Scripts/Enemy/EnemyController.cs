@@ -2,14 +2,23 @@ using UnityEngine;
 
 public class EnemyController : MonoBehaviour
 {
-    public float DeathDistance = 0.5f;
+    [Header("Hit Circle Settings")]
+    public float hitRadius = 0.5f;
+
+    [Tooltip("未設定ならこのEnemyControllerが付いているTransformを中心にします。")]
+    public Transform hitCenter;   // 入れなくてOK
+
+    [Header("Death")]
     public float destroyDelay = 0f;
 
     Animator anim;
     bool isDead = false;
 
+    // Spawner管理（生成された個体）
     EnemySpawner ownerSpawner;
     GameObject myInstance;
+
+    float logTimer;
 
     public void SetOwner(EnemySpawner spawner, GameObject instance)
     {
@@ -20,31 +29,59 @@ public class EnemyController : MonoBehaviour
     void Start()
     {
         anim = GetComponentInChildren<Animator>();
-        Debug.Log($"[Enemy] Start name={name} anim={(anim != null)}");
+        Debug.Log($"[Enemy] Start name={name} selfObj='{gameObject.name}' pos={transform.position} root='{transform.root.name}' rootPos={transform.root.position}");
     }
 
     void Update()
     {
         if (isDead) return;
 
-        int count = Bullet.AllBullets.Count;
+        // 1秒に1回だけログ
+        logTimer += Time.deltaTime;
+        bool doLog = false;
+        if (logTimer >= 1f) { logTimer = 0f; doLog = true; }
+
+        var bullets = Bullet.AllBullets;
+        int count = bullets.Count;
+
+        Vector3 center = (hitCenter != null) ? hitCenter.position : transform.position;
+        float rSq = hitRadius * hitRadius;
+
+        if (doLog)
+        {
+            Debug.Log($"[EnemyHit] enemyObj='{gameObject.name}' root='{transform.root.name}' bullets={count} center={center} r={hitRadius}");
+        }
+
         if (count == 0) return;
 
-        Vector3 enemyPos = transform.position;
-        float deathDistSq = DeathDistance * DeathDistance;
+        float nearestSq = float.PositiveInfinity;
+        Transform nearestBullet = null;
 
         for (int i = count - 1; i >= 0; i--)
         {
-            var b = Bullet.AllBullets[i];
+            var b = bullets[i];
             if (b == null) continue;
 
-            float sq = (b.transform.position - enemyPos).sqrMagnitude;
-            if (sq <= deathDistSq)
+            Vector3 bp = b.transform.position;
+            float sq = (bp - center).sqrMagnitude;
+
+            if (sq < nearestSq)
             {
-                Debug.Log($"[Enemy] HIT! enemy={name} bullet={b.name} dist={Mathf.Sqrt(sq)}");
+                nearestSq = sq;
+                nearestBullet = b.transform;
+            }
+
+            if (sq <= rSq)
+            {
+                Debug.Log($"[EnemyHit] HIT enemyObj='{gameObject.name}' root='{transform.root.name}' bullet='{b.name}' dist={Mathf.Sqrt(sq)}");
                 Die();
                 break;
             }
+        }
+
+        if (doLog && nearestBullet != null)
+        {
+            Debug.Log($"[EnemyHit] nearest enemyObj='{gameObject.name}' bullet='{nearestBullet.name}' dist={Mathf.Sqrt(nearestSq)} need<={hitRadius} bulletPos={nearestBullet.position}");
         }
     }
 
@@ -56,27 +93,25 @@ public class EnemyController : MonoBehaviour
         if (anim != null)
             anim.SetBool("IsDeath", true);
 
-        // 1) Spawnerが渡した「生成個体」があるなら、それだけ消す（最優先）
+        // ★最優先：Spawnerが渡した生成個体（ルート）を消す
         if (ownerSpawner != null && myInstance != null)
         {
+            Debug.Log($"[Enemy] Die -> KillSpawned instance='{myInstance.name}'");
             ownerSpawner.KillSpawned(myInstance, destroyDelay);
             return;
         }
 
-        // 2) 保険：自分の親階層に EnemySpawner がいたら、そいつは絶対消さない
-        var spawnerInParents = GetComponentInParent<EnemySpawner>();
-        if (spawnerInParents != null)
-        {
-            Debug.LogError("[Enemy] Die: 親にEnemySpawnerが居ます。Spawnerが敵Prefabに混ざってる可能性大。破壊をスキップします。");
-            return;
-        }
-
-        // 3) 最後の保険：自分のルート（敵のまとまり）を消す
+        // ★保険：Owner未設定なら、自分のroot（敵のまとまり）を消す
+        Debug.Log($"[Enemy] Die -> Destroy(root) root='{transform.root.name}'");
         Destroy(transform.root.gameObject, destroyDelay);
     }
 
-    void OnDestroy()
+#if UNITY_EDITOR
+    void OnDrawGizmosSelected()
     {
-        Debug.Log($"[Enemy] OnDestroy name={name} id={GetInstanceID()} root={transform.root.name}");
+        Gizmos.color = Color.red;
+        Vector3 center = (hitCenter != null) ? hitCenter.position : transform.position;
+        Gizmos.DrawWireSphere(center, hitRadius);
     }
+#endif
 }
