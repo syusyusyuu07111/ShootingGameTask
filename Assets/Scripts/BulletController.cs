@@ -8,17 +8,14 @@ public class BulletController : MonoBehaviour
     public float fireTimer = 0f;
 
     InputSystem_Actions input;
-
     void Awake()
     {
         input = new InputSystem_Actions();
     }
-
     void OnEnable()
     {
         input.Enable();
     }
-
     void OnDisable()
     {
         input.Disable();
@@ -30,12 +27,16 @@ public class BulletController : MonoBehaviour
 
         if (input.Player.Attack.IsPressed() && fireTimer >= FireInterval)
         {
-            // Pool から弾オブジェクトを取得
             GameObject bullet = pool.GetGameObject(
                 player.position,
                 Quaternion.identity
             );
-
+            var destroyer = bullet.GetComponent<Destroyer>();
+            if (destroyer != null)
+            {
+                destroyer.PoolManager = pool;
+                destroyer.StartDestroyTimer(2f); // 2秒後にプールに戻す例
+            }
             fireTimer = 0f;
         }
     }
