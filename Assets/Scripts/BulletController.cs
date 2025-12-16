@@ -35,7 +35,7 @@ public class BulletController : MonoBehaviour
             if (destroyer != null)
             {
                 destroyer.PoolManager = pool;
-                destroyer.StartDestroyTimer(2f); // 2秒後にプールに戻す例
+                destroyer.StartDestroyTimer(2f); // 2秒後にプールに戻す
             }
             fireTimer = 0f;
         }

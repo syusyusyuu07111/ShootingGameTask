@@ -5,7 +5,7 @@ using UnityEngine;
 public class EnemySpawner : MonoBehaviour
 {
     public float appearanceTime = 3f;
-    public GameObject enemyPrefab;  // ProjectビューのPrefab（青）
+    public GameObject enemyPrefab;
     public Transform player;
 
     readonly List<GameObject> spawned = new List<GameObject>();

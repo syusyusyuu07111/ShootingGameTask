@@ -32,16 +32,16 @@ public class PoolManager : MonoBehaviour
         var obj = Instantiate(Prefab);
         obj.SetActive(false);
 
-        // ★弾リスト登録を保証
+        // 弾リスト
         var bullet = obj.GetComponent<Bullet>();
         if (bullet == null) bullet = obj.AddComponent<Bullet>();
 
-        // ★寿命（プールへ戻す）を保証
+        // 寿命
         var destroyer = obj.GetComponent<Destroyer>();
         if (destroyer == null) destroyer = obj.AddComponent<Destroyer>();
         destroyer.PoolManager = this;
 
-        // ★移動を保証（あなたの BulletMove を使う前提）
+        // 移動
         var move = obj.GetComponent<BulletMove>();
         if (move == null) move = obj.GetComponentInChildren<BulletMove>(true);
         if (move == null) move = obj.AddComponent<BulletMove>();
@@ -65,7 +65,7 @@ public class PoolManager : MonoBehaviour
         if (destroyer == null) destroyer = obj.AddComponent<Destroyer>();
         destroyer.PoolManager = this;
 
-        // 寿命スタート（不要なら削除OK）
+        // 寿命スタート
         destroyer.StartDestroyTimer(LifeTime);
     }
 
