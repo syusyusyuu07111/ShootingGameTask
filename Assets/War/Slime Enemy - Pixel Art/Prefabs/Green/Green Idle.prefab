@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 8068589428734277746}
   - component: {fileID: 8068589428734277747}
   - component: {fileID: 494363861985606491}
+  - component: {fileID: 2484202095276372822}
   m_Layer: 0
   m_Name: Green Idle
   m_TagString: Untagged
@@ -129,3 +130,16 @@ MonoBehaviour:
   hitRadius: 0.5
   hitCenter: {fileID: 0}
   destroyDelay: 0
+--- !u!114 &2484202095276372822
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8068589428734277748}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 88718a37f616de0429d090732a34ca5a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyMove
+  Speed: 1

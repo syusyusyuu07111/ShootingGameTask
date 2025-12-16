@@ -5,19 +5,56 @@ using UnityEngine;
 public class EnemySpawner : MonoBehaviour
 {
     public float appearanceTime = 3f;
-    public GameObject enemyPrefab;      // ProjectビューのPrefab（青）
+    public GameObject enemyPrefab;  // ProjectビューのPrefab（青）
     public Transform player;
 
     readonly List<GameObject> spawned = new List<GameObject>();
+    Coroutine spawnRoutine;
 
-    void Awake()
+    void Update()
     {
-        Debug.Log($"[Spawner] Awake obj='{gameObject.name}' scene='{gameObject.scene.name}'");
+        CleanupList();
     }
 
-    void Start()
+    // ★外部から参照する用（PlayerDieなど）
+    public IReadOnlyList<GameObject> GetSpawnedEnemies()
     {
-        StartCoroutine(SpawnLoop());
+        return spawned;
+    }
+
+    // ★外部から開始/停止できるようにする（重要）
+    public void StartSpawn()
+    {
+        if (spawnRoutine != null) return;
+
+        if (enemyPrefab == null)
+        {
+            Debug.LogError("[Spawner] enemyPrefab が未設定です");
+            return;
+        }
+        if (player == null)
+        {
+            Debug.LogError("[Spawner] player が未設定です");
+            return;
+        }
+        if (Camera.main == null)
+        {
+            Debug.LogError("[Spawner] Camera.main が取れません（MainCameraタグ確認）");
+            return;
+        }
+
+        spawnRoutine = StartCoroutine(SpawnLoop());
+        Debug.Log("[Spawner] StartSpawn");
+    }
+
+    public void StopSpawn()
+    {
+        if (spawnRoutine != null)
+        {
+            StopCoroutine(spawnRoutine);
+            spawnRoutine = null;
+            Debug.Log("[Spawner] StopSpawn");
+        }
     }
 
     IEnumerator SpawnLoop()
@@ -28,16 +65,10 @@ public class EnemySpawner : MonoBehaviour
         {
             loop++;
 
-            if (enemyPrefab == null)
+            // 途中で参照が切れた時の保険
+            if (enemyPrefab == null || player == null || Camera.main == null)
             {
-                Debug.LogError($"[Spawner] Loop={loop} enemyPrefab is NULL (ProjectのPrefabを入れてください)");
-                yield return new WaitForSeconds(1f);
-                continue;
-            }
-
-            if (player == null || Camera.main == null)
-            {
-                Debug.LogError($"[Spawner] Loop={loop} player or Camera.main is NULL");
+                Debug.LogWarning($"[Spawner] Loop={loop} missing refs. wait...");
                 yield return new WaitForSeconds(1f);
                 continue;
             }
@@ -47,19 +78,14 @@ public class EnemySpawner : MonoBehaviour
             GameObject e = Instantiate(enemyPrefab, pos, Quaternion.identity);
             spawned.Add(e);
 
-            // スポーン個体に EnemyController が居るか確認して紐付ける
+            // EnemyControllerがあるならOwnerを渡す（Destroy巻き込み防止）
             var ec = e.GetComponentInChildren<EnemyController>(true);
-            if (ec == null)
-            {
-                Debug.LogError($"[Spawner] ERROR: Spawned enemy has NO EnemyController! prefab={enemyPrefab.name} instance={e.name}");
-            }
-            else
-            {
+            if (ec != null)
                 ec.SetOwner(this, e);
-                Debug.Log($"[Spawner] OK: Spawned '{e.name}' rootPos={e.transform.position} ctrlObj='{ec.gameObject.name}' ctrlPos={ec.transform.position}");
-            }
+            else
+                Debug.LogError($"[Spawner] Spawned '{e.name}' has NO EnemyController. Prefabに付けてください。");
 
-            Debug.Log($"[Spawner] Spawned loop={loop} enemy='{e.name}' total={spawned.Count}");
+            // Debug.Log($"[Spawner] Spawned loop={loop} enemy='{e.name}' total={spawned.Count}");
 
             yield return new WaitForSeconds(appearanceTime);
         }
@@ -75,21 +101,26 @@ public class EnemySpawner : MonoBehaviour
         else Destroy(enemyInstance, delay);
     }
 
+    public void ClearAllSpawned()
+    {
+        for (int i = spawned.Count - 1; i >= 0; i--)
+        {
+            if (spawned[i] != null) Destroy(spawned[i]);
+        }
+        spawned.Clear();
+    }
+
     void CleanupList()
     {
         for (int i = spawned.Count - 1; i >= 0; i--)
             if (spawned[i] == null) spawned.RemoveAt(i);
     }
 
-    void Update()
-    {
-        CleanupList();
-    }
-
     Vector3 GetSpawnPosition(Camera cam)
     {
         float h = cam.orthographicSize;
         float w = h * cam.aspect;
+
         float cx = cam.transform.position.x;
 
         float x = Random.Range(cx - w, cx + w);
