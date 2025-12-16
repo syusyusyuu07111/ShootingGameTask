@@ -3,17 +3,16 @@ using UnityEngine;
 
 public class Bullet : MonoBehaviour
 {
-    public static List<Bullet> AllBullets = new List<Bullet>();
+    public static readonly List<Bullet> AllBullets = new List<Bullet>();
 
     void OnEnable()
     {
-        // プールから出てきた or 生成されたときに登録
-        AllBullets.Add(this);
+        if (!AllBullets.Contains(this))
+            AllBullets.Add(this);
     }
 
     void OnDisable()
     {
-        // プールに戻る or Destroy されたときに解除
         AllBullets.Remove(this);
     }
 }

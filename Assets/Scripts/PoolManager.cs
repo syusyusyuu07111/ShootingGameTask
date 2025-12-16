@@ -9,6 +9,9 @@ public class PoolManager : MonoBehaviour
     [Header("Move Settings")]
     public float Speed = 5f;
 
+    [Header("Life")]
+    public float LifeTime = 2f;
+
     ObjectPool<GameObject> pool;
 
     void Awake()
@@ -29,11 +32,19 @@ public class PoolManager : MonoBehaviour
         var obj = Instantiate(Prefab);
         obj.SetActive(false);
 
-        // 生成物に BulletMove が無ければ必ず付ける（ルート→無ければ子も探す）
+        // ★弾リスト登録を保証
+        var bullet = obj.GetComponent<Bullet>();
+        if (bullet == null) bullet = obj.AddComponent<Bullet>();
+
+        // ★寿命（プールへ戻す）を保証
+        var destroyer = obj.GetComponent<Destroyer>();
+        if (destroyer == null) destroyer = obj.AddComponent<Destroyer>();
+        destroyer.PoolManager = this;
+
+        // ★移動を保証（あなたの BulletMove を使う前提）
         var move = obj.GetComponent<BulletMove>();
         if (move == null) move = obj.GetComponentInChildren<BulletMove>(true);
         if (move == null) move = obj.AddComponent<BulletMove>();
-
         move.Speed = Speed;
 
         return obj;
@@ -43,20 +54,19 @@ public class PoolManager : MonoBehaviour
     {
         obj.SetActive(true);
 
-        // 取り出し時にも Speed を反映
+        // Speed 再反映
         var move = obj.GetComponent<BulletMove>();
         if (move == null) move = obj.GetComponentInChildren<BulletMove>(true);
-
-        if (move == null)
-        {
-            // 念のため：もし無いならここでも付ける
-            move = obj.AddComponent<BulletMove>();
-        }
-
+        if (move == null) move = obj.AddComponent<BulletMove>();
         move.Speed = Speed;
 
-        // デバッグ：本当に付いてるか確認したい時だけON
-        // Debug.Log($"[Pool] Get: {obj.name}, BulletMove={move != null}, Speed={move.Speed}");
+        // Destroyer 再設定
+        var destroyer = obj.GetComponent<Destroyer>();
+        if (destroyer == null) destroyer = obj.AddComponent<Destroyer>();
+        destroyer.PoolManager = this;
+
+        // 寿命スタート（不要なら削除OK）
+        destroyer.StartDestroyTimer(LifeTime);
     }
 
     void OnReleaseToPool(GameObject obj)
