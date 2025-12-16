@@ -664,6 +664,24 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""UpButton"",
+                    ""type"": ""Button"",
+                    ""id"": ""feb9cfd8-c4d2-4aee-9133-e343fcf3cbcc"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""DownButton"",
+                    ""type"": ""Button"",
+                    ""id"": ""a0abe466-e874-4dba-9454-2d148bd42a81"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -1095,6 +1113,28 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""action"": ""GameStop"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""d6f58d6b-fbcd-4665-942e-49ed00f26908"",
+                    ""path"": ""<Keyboard>/upArrow"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""UpButton"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""0fc8e74d-d955-4e16-a4bd-27d15927ee21"",
+                    ""path"": ""<Keyboard>/downArrow"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""DownButton"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -1186,6 +1226,8 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         m_UI_TrackedDevicePosition = m_UI.FindAction("TrackedDevicePosition", throwIfNotFound: true);
         m_UI_TrackedDeviceOrientation = m_UI.FindAction("TrackedDeviceOrientation", throwIfNotFound: true);
         m_UI_GameStop = m_UI.FindAction("GameStop", throwIfNotFound: true);
+        m_UI_UpButton = m_UI.FindAction("UpButton", throwIfNotFound: true);
+        m_UI_DownButton = m_UI.FindAction("DownButton", throwIfNotFound: true);
     }
 
     ~@InputSystem_Actions()
@@ -1462,6 +1504,8 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
     private readonly InputAction m_UI_TrackedDevicePosition;
     private readonly InputAction m_UI_TrackedDeviceOrientation;
     private readonly InputAction m_UI_GameStop;
+    private readonly InputAction m_UI_UpButton;
+    private readonly InputAction m_UI_DownButton;
     /// <summary>
     /// Provides access to input actions defined in input action map "UI".
     /// </summary>
@@ -1517,6 +1561,14 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "UI/GameStop".
         /// </summary>
         public InputAction @GameStop => m_Wrapper.m_UI_GameStop;
+        /// <summary>
+        /// Provides access to the underlying input action "UI/UpButton".
+        /// </summary>
+        public InputAction @UpButton => m_Wrapper.m_UI_UpButton;
+        /// <summary>
+        /// Provides access to the underlying input action "UI/DownButton".
+        /// </summary>
+        public InputAction @DownButton => m_Wrapper.m_UI_DownButton;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -1576,6 +1628,12 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @GameStop.started += instance.OnGameStop;
             @GameStop.performed += instance.OnGameStop;
             @GameStop.canceled += instance.OnGameStop;
+            @UpButton.started += instance.OnUpButton;
+            @UpButton.performed += instance.OnUpButton;
+            @UpButton.canceled += instance.OnUpButton;
+            @DownButton.started += instance.OnDownButton;
+            @DownButton.performed += instance.OnDownButton;
+            @DownButton.canceled += instance.OnDownButton;
         }
 
         /// <summary>
@@ -1620,6 +1678,12 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @GameStop.started -= instance.OnGameStop;
             @GameStop.performed -= instance.OnGameStop;
             @GameStop.canceled -= instance.OnGameStop;
+            @UpButton.started -= instance.OnUpButton;
+            @UpButton.performed -= instance.OnUpButton;
+            @UpButton.canceled -= instance.OnUpButton;
+            @DownButton.started -= instance.OnDownButton;
+            @DownButton.performed -= instance.OnDownButton;
+            @DownButton.canceled -= instance.OnDownButton;
         }
 
         /// <summary>
@@ -1873,5 +1937,19 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnGameStop(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "UpButton" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnUpButton(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "DownButton" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnDownButton(InputAction.CallbackContext context);
     }
 }

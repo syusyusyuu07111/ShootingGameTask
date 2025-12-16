@@ -16,13 +16,13 @@ public class EnemySpawner : MonoBehaviour
         CleanupList();
     }
 
-    // ★外部から参照する用（PlayerDieなど）
+    // 外部から参照する用>死んでからリトライするときにもう一度呼び出してコルーチンを呼び出す
     public IReadOnlyList<GameObject> GetSpawnedEnemies()
     {
         return spawned;
     }
 
-    // ★外部から開始/停止できるようにする（重要）
+    // 外部から開始/停止できるようにする
     public void StartSpawn()
     {
         if (spawnRoutine != null) return;
@@ -78,7 +78,7 @@ public class EnemySpawner : MonoBehaviour
             GameObject e = Instantiate(enemyPrefab, pos, Quaternion.identity);
             spawned.Add(e);
 
-            // EnemyControllerがあるならOwnerを渡す（Destroy巻き込み防止）
+            // EnemyControllerがあるときにOwnerを渡す（Destroy巻き込み防止）
             var ec = e.GetComponentInChildren<EnemyController>(true);
             if (ec != null)
                 ec.SetOwner(this, e);
