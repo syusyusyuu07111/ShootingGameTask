@@ -1,25 +1,53 @@
 using UnityEngine;
 
+/// <summary>
+/// 敵1体を管理するクラス
+/// ・弾との距離で当たり判定を行う
+/// ・当たったら死亡する
+/// ・Spawner から生成された敵は Spawner 経由で消す
+/// </summary>
 public class EnemyController : MonoBehaviour
 {
+    // ================================
+    // 当たり判定設定
+    // ================================
+
     [Header("Hit Circle Settings")]
+    [Tooltip("弾との当たり判定の半径")]
     public float hitRadius = 0.5f;
 
-    [Tooltip("未設定ならこのEnemyControllerが付いているTransformを中心にします。")]
-    public Transform hitCenter;   // 入れなくてOK
+    // 当たり判定の中心
+    // 未設定ならこの EnemyController が付いている位置を使う
+    public Transform hitCenter;
+
+    // ================================
+    // 死亡設定
+    // ================================
 
     [Header("Death")]
+    [Tooltip("消えるまでの遅延時間（死亡アニメ用）")]
     public float destroyDelay = 0f;
 
     Animator anim;
     bool isDead = false;
 
-    // Spawner管理（生成された個体）
+    // ================================
+    // Spawner 管理用（ここが重要）
+    // ================================
+
+    // この敵を「生成した」Spawner
+    // → Spawner が敵リストを管理している
     EnemySpawner ownerSpawner;
+
+    // Spawner が管理している「この敵の実体」
+    // → Destroy するときに Spawner に渡すための参照
     GameObject myInstance;
 
-    float logTimer;
-
+    /// <summary>
+    /// Spawner から呼ばれる
+    /// 「この敵は私（Spawner）が管理しているよ」
+    /// という情報を受け取るための関数
+    /// </summary>
     public void SetOwner(EnemySpawner spawner, GameObject instance)
     {
         ownerSpawner = spawner;
@@ -28,90 +56,77 @@ public class EnemyController : MonoBehaviour
 
     void Start()
     {
+        // 子オブジェクトから Animator を取得
         anim = GetComponentInChildren<Animator>();
-        Debug.Log($"[Enemy] Start name={name} selfObj='{gameObject.name}' pos={transform.position} root='{transform.root.name}' rootPos={transform.root.position}");
     }
 
     void Update()
     {
+        // すでに死んでいたら何もしない
         if (isDead) return;
 
-        // 1秒に1回だけログ
-        logTimer += Time.deltaTime;
-        bool doLog = false;
-        if (logTimer >= 1f) { logTimer = 0f; doLog = true; }
-
+        // 現在存在している弾リストを取得
         var bullets = Bullet.AllBullets;
-        int count = bullets.Count;
+        if (bullets.Count == 0) return;
 
-        Vector3 center = (hitCenter != null) ? hitCenter.position : transform.position;
+        // 当たり判定の中心を決める
+        Vector3 center;
+        if (hitCenter != null)
+            center = hitCenter.position;
+        else
+            center = transform.position;
+
+        // 半径の2乗（sqrtを使わないため）
         float rSq = hitRadius * hitRadius;
 
-        if (doLog)
+        // 弾との距離チェック
+        for (int i = bullets.Count - 1; i >= 0; i--)
         {
-            Debug.Log($"[EnemyHit] enemyObj='{gameObject.name}' root='{transform.root.name}' bullets={count} center={center} r={hitRadius}");
-        }
-
-        if (count == 0) return;
-
-        float nearestSq = float.PositiveInfinity;
-        Transform nearestBullet = null;
-
-        for (int i = count - 1; i >= 0; i--)
-        {
-            var b = bullets[i];
+            Bullet b = bullets[i];
             if (b == null) continue;
 
             Vector3 bp = b.transform.position;
             float sq = (bp - center).sqrMagnitude;
 
-            if (sq < nearestSq)
-            {
-                nearestSq = sq;
-                nearestBullet = b.transform;
-            }
-
+            // 半径以内ならヒット
             if (sq <= rSq)
             {
-                Debug.Log($"[EnemyHit] HIT enemyObj='{gameObject.name}' root='{transform.root.name}' bullet='{b.name}' dist={Mathf.Sqrt(sq)}");
                 Die();
                 break;
             }
         }
-
-        if (doLog && nearestBullet != null)
-        {
-            Debug.Log($"[EnemyHit] nearest enemyObj='{gameObject.name}' bullet='{nearestBullet.name}' dist={Mathf.Sqrt(nearestSq)} need<={hitRadius} bulletPos={nearestBullet.position}");
-        }
     }
 
+    /// <summary>
+    /// 敵を死亡させる
+    /// </summary>
     void Die()
     {
+        // 二重実行防止
         if (isDead) return;
         isDead = true;
 
+        // 死亡アニメ再生
         if (anim != null)
             anim.SetBool("IsDeath", true);
 
-        // ★最優先：Spawnerが渡した生成個体（ルート）を消す
+        // --------------------------------
+        // Spawner 管理の敵の場合
+        // --------------------------------
+        // Spawner は「生成した敵のリスト」を持っているので
+        // 勝手に Destroy するとリストが壊れる
+        // → 必ず Spawner に「消して」とお願いする
         if (ownerSpawner != null && myInstance != null)
         {
-            Debug.Log($"[Enemy] Die -> KillSpawned instance='{myInstance.name}'");
             ownerSpawner.KillSpawned(myInstance, destroyDelay);
             return;
         }
 
-        // ★保険：Owner未設定なら、自分のroot（敵のまとまり）を消す
-        Debug.Log($"[Enemy] Die -> Destroy(root) root='{transform.root.name}'");
+        // --------------------------------
+        // Spawner 管理でない敵の場合
+        // --------------------------------
+        // シーンに直置きされた敵
+        // 自分のルートごと消す
         Destroy(transform.root.gameObject, destroyDelay);
     }
-
-#if UNITY_EDITOR
-    void OnDrawGizmosSelected()
-    {
-        Gizmos.color = Color.red;
-        Vector3 center = (hitCenter != null) ? hitCenter.position : transform.position;
-        Gizmos.DrawWireSphere(center, hitRadius);
-    }
-#endif
 }

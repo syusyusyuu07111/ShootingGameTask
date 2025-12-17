@@ -6,7 +6,7 @@ public class BulletMove : MonoBehaviour
 
     void Update()
     {
-        // ã‚É”ò‚Î‚·
-        transform.position += Vector3.up * Speed * Time.deltaTime;
+        // ’e‚ğ‰E‚É”ò‚Î‚·
+        transform.position += Vector3.right * Speed * Time.deltaTime;
     }
 }

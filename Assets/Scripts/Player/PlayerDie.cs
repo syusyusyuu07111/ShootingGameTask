@@ -146,7 +146,7 @@ public class PlayerDie : MonoBehaviour
     {
         if (state != State.Stop) return;
 
-        pauseSelection = 1 - pauseSelection; // 0Ì1 ƒgƒOƒ‹
+        pauseSelection = 1 - pauseSelection; // 0Ì1
         UpdatePauseHighlight();
     }
 

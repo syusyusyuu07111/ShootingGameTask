@@ -7,21 +7,21 @@ public class EnemyMove : MonoBehaviour
     // 移動タイプをInspectorから選択できるようにする
     public enum MoveType
     {
-        Down,       // 真下
+        Left,       // 真下
         Diagonal    // 斜め
     }
 
-    public MoveType moveType = MoveType.Down;
+    public MoveType moveType = MoveType.Left;
 
     // 斜め移動用
-    public Vector2 diagonalDirection = new Vector2(1f, -1f);
+    public Vector2 diagonalDirection = new Vector2(-1f, -1f);
 
     void Update()
     {
         switch (moveType)
         {
-            case MoveType.Down:
-                MoveDown();
+            case MoveType.Left:
+                MoveLeft();
                 break;
 
             case MoveType.Diagonal:
@@ -30,9 +30,9 @@ public class EnemyMove : MonoBehaviour
         }
     }
 
-    void MoveDown()
+    void MoveLeft()
     {
-        transform.position += Vector3.down * Speed * Time.deltaTime;
+        transform.position += Vector3.left * Speed * Time.deltaTime;
     }
 
     void MoveDiagonal()

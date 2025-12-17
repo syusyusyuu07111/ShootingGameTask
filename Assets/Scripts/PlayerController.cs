@@ -1,15 +1,21 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class PlayerController : MonoBehaviour
 {
+    [Header("Move Settings")]
     public float Speed = 5f;
+
+    // 実際に動かすプレイヤー
     public Transform Player;
 
-    public float LimitLeft = -9.9f;
-    public float LimitRight = 10f;
+    [Header("Move Limit (Y)")]
+    public float LimitDown = -4f;
+    public float LimitUp = 6f;
 
     InputSystem_Actions input;
     Animator anim;
+
     public bool IsMoving = false;
 
     private void Awake()
@@ -19,7 +25,12 @@ public class PlayerController : MonoBehaviour
 
     private void OnEnable()
     {
-        input.Player.Move.Enable();
+        input.Player.Enable();
+    }
+
+    private void OnDisable()
+    {
+        input.Player.Disable();
     }
 
     private void Start()
@@ -29,31 +40,32 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
+        // 入力取得（上下：W/S or Stick）
         Vector2 move = input.Player.Move.ReadValue<Vector2>();
 
         if (move.sqrMagnitude > 0.01f)
         {
             IsMoving = true;
-            anim.SetBool("iswalk", true);
+            if (anim != null)
+                anim.SetBool("iswalk", true);
 
-            // 右（D）が押されているとき
-            if (move.x > 0 && Player.transform.position.x < LimitRight)
-            {
-                // プレイヤーを右に移動させる
-                Player.transform.position += Vector3.right * Speed * Time.deltaTime;
-            }
+            // 現在位置を取得
+            Vector3 pos = Player.position;
 
-            // 左（A）が押されているとき
-            if (move.x < 0 && Player.transform.position.x > LimitLeft)
-            {
-                // プレイヤーを左に移動させる
-                Player.transform.position += Vector3.left * Speed * Time.deltaTime;
-            }
+            // 入力に応じて上下移動
+            pos.y += move.y * Speed * Time.deltaTime;
+
+            // ｙ座標を制限（-4 ～ 6）
+            pos.y = Mathf.Clamp(pos.y, LimitDown, LimitUp);
+
+            // 位置を反映
+            Player.position = pos;
         }
         else
         {
             IsMoving = false;
-            anim.SetBool("iswalk", false);
+            if (anim != null)
+                anim.SetBool("iswalk", false);
         }
     }
 }

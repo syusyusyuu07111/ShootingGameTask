@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: dbd67fe8bf919a94eab945510e6bcb18
+guid: 422c2bfcd25e2b045848c518111c16b1
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -97,13 +97,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: walk_Up_0
+      name: Soldier-Idle_0
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 48
-        height: 64
+        x: 41
+        y: 43
+        width: 15
+        height: 18
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -112,20 +112,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 1680ea677cb9fe64ca9e7e747b593181
-      internalID: 1031960321
+      spriteID: 8584f389c8adf0243ad943e5b90ef66f
+      internalID: 209150208
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: walk_Up_1
+      name: Soldier-Idle_1
       rect:
         serializedVersion: 2
-        x: 48
-        y: 0
-        width: 48
-        height: 64
+        x: 141
+        y: 43
+        width: 15
+        height: 18
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -134,20 +134,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: e574c2250c198b94389a9ea6af18e414
-      internalID: 334613779
+      spriteID: c55f2058c7366f6408b6f5d1ab11fcb8
+      internalID: 623347818
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: walk_Up_2
+      name: Soldier-Idle_2
       rect:
         serializedVersion: 2
-        x: 96
-        y: 0
-        width: 48
-        height: 64
+        x: 241
+        y: 43
+        width: 15
+        height: 19
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -156,20 +156,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: fa1b65ecf761e734b87c70f87f748154
-      internalID: 218177484
+      spriteID: 28361ae732ce4ee41b55e2a5cb55734c
+      internalID: -331636488
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: walk_Up_3
+      name: Soldier-Idle_3
       rect:
         serializedVersion: 2
-        x: 144
-        y: 0
-        width: 48
-        height: 64
+        x: 341
+        y: 43
+        width: 15
+        height: 19
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -178,20 +178,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: c12cda84e4cae4d4f96881bc5afc56c4
-      internalID: 1143665604
+      spriteID: 028de743152f57d48a2dd15e5c1332fd
+      internalID: 1035476820
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: walk_Up_4
+      name: Soldier-Idle_4
       rect:
         serializedVersion: 2
-        x: 192
-        y: 0
-        width: 48
-        height: 64
+        x: 441
+        y: 43
+        width: 15
+        height: 18
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -200,20 +200,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: f176c78268eb5ff4da524497f51f35e7
-      internalID: 783904211
+      spriteID: 70512c57c5cc305488168ace77370ba6
+      internalID: -818121920
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: walk_Up_5
+      name: Soldier-Idle_5
       rect:
         serializedVersion: 2
-        x: 240
-        y: 0
-        width: 48
-        height: 64
+        x: 541
+        y: 43
+        width: 15
+        height: 18
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -222,52 +222,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 62ee2753e3a394d4fbc67a2ed61c0c73
-      internalID: -274812530
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: walk_Up_6
-      rect:
-        serializedVersion: 2
-        x: 288
-        y: 0
-        width: 48
-        height: 64
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 1ebf2e126237c53428257b1d1f92b2f8
-      internalID: -375542120
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: walk_Up_7
-      rect:
-        serializedVersion: 2
-        x: 336
-        y: 0
-        width: 48
-        height: 64
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 3b030b7ec190dd34490ae2e1931d3509
-      internalID: -725208602
+      spriteID: 93aa508a49171924e9d4fecebcd6bb1b
+      internalID: -170588532
       vertices: []
       indices: 
       edges: []
@@ -276,7 +232,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 6c3200e4debc885488776b24120ecfc3
+    spriteID: 737997fae0c68534c91635f0e1754981
     internalID: 0
     vertices: []
     indices: 
@@ -286,16 +242,14 @@ TextureImporter:
     spriteCustomMetadata:
       entries:
       - key: SpriteEditor.SliceSettings
-        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":48.0,"y":64.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":1,"keepEmptyRects":false,"isAlternate":false}'
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":64.0,"y":64.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":0,"keepEmptyRects":false,"isAlternate":false}'
     nameFileIdTable:
-      walk_Up_0: 1031960321
-      walk_Up_1: 334613779
-      walk_Up_2: 218177484
-      walk_Up_3: 1143665604
-      walk_Up_4: 783904211
-      walk_Up_5: -274812530
-      walk_Up_6: -375542120
-      walk_Up_7: -725208602
+      Soldier-Idle_0: 209150208
+      Soldier-Idle_1: 623347818
+      Soldier-Idle_2: -331636488
+      Soldier-Idle_3: 1035476820
+      Soldier-Idle_4: -818121920
+      Soldier-Idle_5: -170588532
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
