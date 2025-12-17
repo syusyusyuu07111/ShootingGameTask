@@ -2,52 +2,38 @@ using UnityEngine;
 
 /// <summary>
 /// 敵1体を管理するクラス
-/// ・弾との距離で当たり判定を行う
-/// ・当たったら死亡する
-/// ・Spawner から生成された敵は Spawner 経由で消す
+/// ・弾との距離で当たり判定
+/// ・当たったら死亡
+/// ・Spawner生成ならSpawner経由で消す
+/// ・死亡エフェクトはEffectManagerに通知して生成
 /// </summary>
 public class EnemyController : MonoBehaviour
 {
-    // ================================
-    // 当たり判定設定
-    // ================================
-
     [Header("Hit Circle Settings")]
-    [Tooltip("弾との当たり判定の半径")]
     public float hitRadius = 0.5f;
 
-    // 当たり判定の中心
-    // 未設定ならこの EnemyController が付いている位置を使う
+    [Tooltip("当たり判定の中心（未設定ならEnemy位置）")]
     public Transform hitCenter;
-
-    // ================================
-    // 死亡設定
-    // ================================
 
     [Header("Death")]
     [Tooltip("消えるまでの遅延時間（死亡アニメ用）")]
     public float destroyDelay = 0f;
 
-    Animator anim;
-    bool isDead = false;
+    [Header("Effect")]
+    [Tooltip("未設定でもOK（自動でシーンから探す）")]
+    public EffectManager effectManager;
 
-    // ================================
-    // Spawner 管理用（ここが重要）
-    // ================================
+    [Header("Animator")]
+    [Tooltip("死亡アニメBoolパラメータ名（Animator側に無いなら空でもOK）")]
+    public string deathBoolParam = "IsDeath";
 
-    // この敵を「生成した」Spawner
-    // → Spawner が敵リストを管理している
-    EnemySpawner ownerSpawner;
+    private Animator anim;
+    private bool isDead = false;
 
-    // Spawner が管理している「この敵の実体」
-    // → Destroy するときに Spawner に渡すための参照
-    GameObject myInstance;
+    // Spawner管理
+    private EnemySpawner ownerSpawner;
+    private GameObject myInstance;
 
-    /// <summary>
-    /// Spawner から呼ばれる
-    /// 「この敵は私（Spawner）が管理しているよ」
-    /// という情報を受け取るための関数
-    /// </summary>
     public void SetOwner(EnemySpawner spawner, GameObject instance)
     {
         ownerSpawner = spawner;
@@ -56,30 +42,26 @@ public class EnemyController : MonoBehaviour
 
     void Start()
     {
-        // 子オブジェクトから Animator を取得
         anim = GetComponentInChildren<Animator>();
+
+        // Spawner生成で参照が入らない対策：シーン上のEffectManagerを拾う
+        if (effectManager == null)
+            effectManager = FindFirstObjectByType<EffectManager>();
+
+        if (effectManager == null)
+            Debug.LogError($"[Enemy] EffectManager がシーンに見つかりません name={name}");
     }
 
     void Update()
     {
-        // すでに死んでいたら何もしない
         if (isDead) return;
 
-        // 現在存在している弾リストを取得
         var bullets = Bullet.AllBullets;
-        if (bullets.Count == 0) return;
+        if (bullets == null || bullets.Count == 0) return;
 
-        // 当たり判定の中心を決める
-        Vector3 center;
-        if (hitCenter != null)
-            center = hitCenter.position;
-        else
-            center = transform.position;
-
-        // 半径の2乗（sqrtを使わないため）
+        Vector3 center = (hitCenter != null) ? hitCenter.position : transform.position;
         float rSq = hitRadius * hitRadius;
 
-        // 弾との距離チェック
         for (int i = bullets.Count - 1; i >= 0; i--)
         {
             Bullet b = bullets[i];
@@ -88,45 +70,57 @@ public class EnemyController : MonoBehaviour
             Vector3 bp = b.transform.position;
             float sq = (bp - center).sqrMagnitude;
 
-            // 半径以内ならヒット
             if (sq <= rSq)
             {
-                Die();
+                Die(transform.position); // “死んだ位置”は敵の位置にする
                 break;
             }
         }
     }
 
-    /// <summary>
-    /// 敵を死亡させる
-    /// </summary>
-    void Die()
+    void Die(Vector3 diePos)
     {
-        // 二重実行防止
         if (isDead) return;
         isDead = true;
 
-        // 死亡アニメ再生
-        if (anim != null)
-            anim.SetBool("IsDeath", true);
+        // 1) まずエフェクト（ここが最優先）
+        if (effectManager != null)
+        {
+            Debug.Log($"[Enemy] call PlayEffect pos={diePos} name={name}");
+            effectManager.PlayEffect(diePos);
+        }
+        else
+        {
+            Debug.LogError($"[Enemy] effectManager が未設定で PlayEffect を呼べない name={name}");
+        }
 
-        // --------------------------------
-        // Spawner 管理の敵の場合
-        // --------------------------------
-        // Spawner は「生成した敵のリスト」を持っているので
-        // 勝手に Destroy するとリストが壊れる
-        // → 必ず Spawner に「消して」とお願いする
+        // 2) 死亡アニメ（パラメータが無いならエラーを避けてスキップ）
+        if (anim != null && !string.IsNullOrEmpty(deathBoolParam))
+        {
+            if (HasBoolParameter(anim, deathBoolParam))
+                anim.SetBool(deathBoolParam, true);
+            else
+                Debug.LogWarning($"[Enemy] AnimatorにBool '{deathBoolParam}' がありません name={name}");
+        }
+
+        // 3) 消す（Spawner管理ならSpawnerへ依頼）
         if (ownerSpawner != null && myInstance != null)
         {
             ownerSpawner.KillSpawned(myInstance, destroyDelay);
             return;
         }
 
-        // --------------------------------
-        // Spawner 管理でない敵の場合
-        // --------------------------------
-        // シーンに直置きされた敵
-        // 自分のルートごと消す
         Destroy(transform.root.gameObject, destroyDelay);
+    }
+
+    // Animatorに指定のBoolパラメータが存在するかチェック（存在しない時のログ地獄回避）
+    bool HasBoolParameter(Animator animator, string paramName)
+    {
+        foreach (var p in animator.parameters)
+        {
+            if (p.type == AnimatorControllerParameterType.Bool && p.name == paramName)
+                return true;
+        }
+        return false;
     }
 }
