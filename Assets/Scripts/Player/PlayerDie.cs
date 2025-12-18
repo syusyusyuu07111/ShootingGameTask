@@ -35,6 +35,8 @@ public class PlayerDie : MonoBehaviour
     readonly Color selectedColor = Color.red;
     readonly Color normalColor = Color.black;
 
+    public Image GameOverProductionImage;
+
     void Awake()
     {
         input = new InputSystem_Actions();
@@ -65,6 +67,7 @@ public class PlayerDie : MonoBehaviour
 
     void Start()
     {
+        GameOverProductionImage.enabled = false;
         if (GameOverImage != null) GameOverImage.enabled = false;
         if (TitleImage != null) TitleImage.enabled = true;
 
@@ -246,6 +249,12 @@ public class PlayerDie : MonoBehaviour
 
     IEnumerator GameOverSequence()
     {
+        //ゲームオーバーになったらプレイヤーの死亡演出を追加する
+        GameOverProductionImage.enabled = true;
+        //少しずつ透明度を下げて
+
+
+
         if (GameOverImage != null) GameOverImage.enabled = true;
 
         yield return new WaitForSecondsRealtime(1f);
