@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 /// <summary>
 /// 敵1体を管理するクラス
@@ -27,12 +28,33 @@ public class EnemyController : MonoBehaviour
     [Tooltip("死亡アニメBoolパラメータ名（Animator側に無いなら空でもOK）")]
     public string deathBoolParam = "IsDeath";
 
+    [Header("Break Runtime (REAL CUT 4-split)")]
+    [Tooltip("見た目のSpriteRenderer（未設定なら子から自動取得）")]
+    public SpriteRenderer targetRenderer;
+
+    [Tooltip("パーンで飛ぶ距離（Unity単位）")]
+    public float burstDistance = 0.9f;
+
+    [Tooltip("パーン時間（短いほど気持ちいい）")]
+    public float burstTime = 0.18f;
+
+    [Tooltip("回転量（度）")]
+    public float burstRotate = 240f;
+
+    [Tooltip("パーン完了後、エフェクトまでの待ち")]
+    public float afterBurstWait = 0.05f;
+
+    [Tooltip("破片を残す時間")]
+    public float piecesLife = 0.25f;
+
     private Animator anim;
     private bool isDead = false;
 
     // Spawner管理
     private EnemySpawner ownerSpawner;
     private GameObject myInstance;
+
+    Coroutine deathRoutine;
 
     public void SetOwner(EnemySpawner spawner, GameObject instance)
     {
@@ -44,12 +66,17 @@ public class EnemyController : MonoBehaviour
     {
         anim = GetComponentInChildren<Animator>();
 
-        // Spawner生成で参照が入らない対策：シーン上のEffectManagerを拾う
         if (effectManager == null)
             effectManager = FindFirstObjectByType<EffectManager>();
 
         if (effectManager == null)
             Debug.LogError($"[Enemy] EffectManager がシーンに見つかりません name={name}");
+
+        if (targetRenderer == null)
+            targetRenderer = GetComponentInChildren<SpriteRenderer>(true);
+
+        if (targetRenderer == null)
+            Debug.LogError($"[Enemy] SpriteRenderer が見つかりません（4分割できません） name={name}");
     }
 
     void Update()
@@ -72,7 +99,7 @@ public class EnemyController : MonoBehaviour
 
             if (sq <= rSq)
             {
-                Die(transform.position); // “死んだ位置”は敵の位置にする
+                Die(transform.position);
                 break;
             }
         }
@@ -83,27 +110,223 @@ public class EnemyController : MonoBehaviour
         if (isDead) return;
         isDead = true;
 
-        // 1) まずエフェクト（ここが最優先）
-        if (effectManager != null)
-        {
-            Debug.Log($"[Enemy] call PlayEffect pos={diePos} name={name}");
-            effectManager.PlayEffect(diePos);
-        }
-        else
-        {
-            Debug.LogError($"[Enemy] effectManager が未設定で PlayEffect を呼べない name={name}");
-        }
+        if (deathRoutine != null) StopCoroutine(deathRoutine);
+        deathRoutine = StartCoroutine(DeathSequence(diePos));
+    }
 
-        // 2) 死亡アニメ（パラメータが無いならエラーを避けてスキップ）
+    IEnumerator DeathSequence(Vector3 diePos)
+    {
+        // 事故防止：当たり判定停止（2D/3D両対応）
+        var col3d = GetComponent<Collider>();
+        if (col3d != null) col3d.enabled = false;
+
+        var col2d = GetComponent<Collider2D>();
+        if (col2d != null) col2d.enabled = false;
+
+        // 死亡アニメ（使うなら）
         if (anim != null && !string.IsNullOrEmpty(deathBoolParam))
         {
             if (HasBoolParameter(anim, deathBoolParam))
                 anim.SetBool(deathBoolParam, true);
-            else
-                Debug.LogWarning($"[Enemy] AnimatorにBool '{deathBoolParam}' がありません name={name}");
         }
 
-        // 3) 消す（Spawner管理ならSpawnerへ依頼）
+        // Spriteが無いなら従来：即エフェクト→消す
+        if (targetRenderer == null || targetRenderer.sprite == null)
+        {
+            if (effectManager != null) effectManager.PlayEffect(diePos);
+            KillSelf();
+            yield break;
+        }
+
+        // ★ランタイムで「本当にカット」した4分割を生成
+        bool didSplit = TrySpawnRuntimePiecesRealCut(
+            targetRenderer,
+            out GameObject piecesRoot,
+            out Transform[] pieces,
+            out Vector3[] baseLocalPos
+        );
+
+        if (!didSplit)
+        {
+            // 失敗したらフォールバック（ゲームが止まらないように）
+            if (effectManager != null) effectManager.PlayEffect(diePos);
+            KillSelf();
+            yield break;
+        }
+
+        // 本体を隠す（Rendererだけ消す）
+        targetRenderer.enabled = false;
+
+        // パーン演出
+        yield return StartCoroutine(BurstPieces(pieces, baseLocalPos));
+
+        // 少し待ってエフェクト
+        if (afterBurstWait > 0f)
+            yield return new WaitForSeconds(afterBurstWait);
+
+        if (effectManager != null)
+            effectManager.PlayEffect(diePos);
+
+        // 破片をちょい残す
+        if (piecesLife > 0f)
+            yield return new WaitForSeconds(piecesLife);
+
+        if (piecesRoot != null)
+            Destroy(piecesRoot);
+
+        KillSelf();
+    }
+
+    IEnumerator BurstPieces(Transform[] pieces, Vector3[] baseLocalPos)
+    {
+        // 4方向（左上/右上/左下/右下）
+        Vector3[] dirs =
+        {
+            new Vector3(-1f,  1f, 0f).normalized,
+            new Vector3( 1f,  1f, 0f).normalized,
+            new Vector3(-1f, -1f, 0f).normalized,
+            new Vector3( 1f, -1f, 0f).normalized,
+        };
+
+        Quaternion[] baseRot = new Quaternion[4];
+        for (int i = 0; i < 4; i++) baseRot[i] = pieces[i].localRotation;
+
+        float dur = Mathf.Max(0.0001f, burstTime);
+        float t = 0f;
+
+        while (t < dur)
+        {
+            t += Time.deltaTime;
+            float a = Mathf.Clamp01(t / dur);
+
+            // easeOutCubic
+            float ease = 1f - Mathf.Pow(1f - a, 3f);
+
+            for (int i = 0; i < 4; i++)
+            {
+                pieces[i].localPosition = baseLocalPos[i] + dirs[i] * (burstDistance * ease);
+
+                float sign = (i % 2 == 0) ? 1f : -1f;
+                pieces[i].localRotation = baseRot[i] * Quaternion.Euler(0f, 0f, burstRotate * sign * ease);
+            }
+
+            yield return null;
+        }
+    }
+
+    /// <summary>
+    /// SpriteRendererのSpriteを「textureRect」で本当に4分割して生成する
+    /// Atlas/Packing でも切り出しが崩れにくい版
+    /// </summary>
+    bool TrySpawnRuntimePiecesRealCut(
+        SpriteRenderer src,
+        out GameObject root,
+        out Transform[] pieces,
+        out Vector3[] baseLocalPos
+    )
+    {
+        root = null;
+        pieces = null;
+        baseLocalPos = null;
+
+        Sprite sp = src.sprite;
+        if (sp == null) return false;
+
+        Texture2D tex = sp.texture;
+        if (tex == null) return false;
+
+        // ★Packed/Atlas対応：rect ではなく textureRect を使う
+        Rect tr = sp.textureRect; // テクスチャ上の実領域（px）
+
+        float halfW = tr.width * 0.5f;
+        float halfH = tr.height * 0.5f;
+
+        // 4分割Rect（px）
+        // BL / BR / TL / TR
+        Rect[] rects =
+        {
+            new Rect(tr.xMin,          tr.yMin,          halfW, halfH), // BL
+            new Rect(tr.xMin + halfW,  tr.yMin,          halfW, halfH), // BR
+            new Rect(tr.xMin,          tr.yMin + halfH,  halfW, halfH), // TL
+            new Rect(tr.xMin + halfW,  tr.yMin + halfH,  halfW, halfH), // TR
+        };
+
+        // ピースは中心pivotにして扱いやすく
+        Vector2 pivot = new Vector2(0.5f, 0.5f);
+
+        // 元SpriteのPPUに合わせる（サイズが一致する）
+        float ppu = sp.pixelsPerUnit;
+
+        // 親を作って、Rendererと同じTransform空間に置く
+        root = new GameObject($"{src.gameObject.name}_Pieces");
+        root.transform.SetParent(src.transform, false);
+        root.transform.localPosition = Vector3.zero;
+        root.transform.localRotation = Quaternion.identity;
+        root.transform.localScale = Vector3.one;
+
+        pieces = new Transform[4];
+        baseLocalPos = new Vector3[4];
+
+        // ★配置は sprite.bounds を使う（見た目のサイズに確実に一致）
+        // boundsは「Unity単位」で取れるので安全
+        Vector3 ext = sp.bounds.extents; // 半分サイズ（Unity単位）
+        Vector3[] offsets =
+        {
+            new Vector3(-ext.x * 0.5f, -ext.y * 0.5f, 0f), // BL
+            new Vector3( ext.x * 0.5f, -ext.y * 0.5f, 0f), // BR
+            new Vector3(-ext.x * 0.5f,  ext.y * 0.5f, 0f), // TL
+            new Vector3( ext.x * 0.5f,  ext.y * 0.5f, 0f), // TR
+        };
+
+        // Burst側は「LU,RU,LD,RD」順なので、ここで TL,TR,BL,BR に組み替え
+        int[] map = { 2, 3, 0, 1 }; // TL,TR,BL,BR
+
+        int sortingLayerID = src.sortingLayerID;
+        int sortingOrder = src.sortingOrder;
+
+        for (int i = 0; i < 4; i++)
+        {
+            int idx = map[i];
+
+            Sprite pieceSprite;
+            try
+            {
+                // ★これが「本当にカット」してる部分
+                pieceSprite = Sprite.Create(tex, rects[idx], pivot, ppu, 0, SpriteMeshType.FullRect);
+            }
+            catch
+            {
+                if (root != null) Destroy(root);
+                root = null;
+                return false;
+            }
+
+            GameObject go = new GameObject($"Piece_{i}");
+            go.transform.SetParent(root.transform, false);
+            go.transform.localPosition = offsets[idx];
+            go.transform.localRotation = Quaternion.identity;
+            go.transform.localScale = Vector3.one;
+
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = pieceSprite;
+            sr.sortingLayerID = sortingLayerID;
+            sr.sortingOrder = sortingOrder + 1;
+
+            // 見た目を合わせる
+            sr.color = src.color;
+            sr.sharedMaterial = src.sharedMaterial;
+            sr.flipX = src.flipX;
+            sr.flipY = src.flipY;
+
+            pieces[i] = go.transform;
+            baseLocalPos[i] = go.transform.localPosition;
+        }
+
+        return true;
+    }
+
+    void KillSelf()
+    {
         if (ownerSpawner != null && myInstance != null)
         {
             ownerSpawner.KillSpawned(myInstance, destroyDelay);
@@ -113,7 +336,6 @@ public class EnemyController : MonoBehaviour
         Destroy(transform.root.gameObject, destroyDelay);
     }
 
-    // Animatorに指定のBoolパラメータが存在するかチェック（存在しない時のログ地獄回避）
     bool HasBoolParameter(Animator animator, string paramName)
     {
         foreach (var p in animator.parameters)

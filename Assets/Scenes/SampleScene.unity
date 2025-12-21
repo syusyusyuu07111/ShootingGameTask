@@ -838,6 +838,7 @@ GameObject:
   - component: {fileID: 512384774}
   - component: {fileID: 512384777}
   - component: {fileID: 512384778}
+  - component: {fileID: 512384779}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -853,7 +854,7 @@ Animator:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 512384773}
-  m_Enabled: 1
+  m_Enabled: 0
   m_Avatar: {fileID: 0}
   m_Controller: {fileID: 9100000, guid: a3999e95df27d754db73a4c410c3d505, type: 2}
   m_CullingMode: 0
@@ -973,6 +974,26 @@ MonoBehaviour:
   player: {fileID: 512384776}
   FireInterval: 0.2
   fireTimer: 0
+--- !u!114 &512384779
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 512384773}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 82ede6dd88f81624ab5e2000748a8379, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Animation
+  frames:
+  - {fileID: 209150208, guid: 422c2bfcd25e2b045848c518111c16b1, type: 3}
+  - {fileID: 623347818, guid: 422c2bfcd25e2b045848c518111c16b1, type: 3}
+  - {fileID: -331636488, guid: 422c2bfcd25e2b045848c518111c16b1, type: 3}
+  - {fileID: 1035476820, guid: 422c2bfcd25e2b045848c518111c16b1, type: 3}
+  - {fileID: -818121920, guid: 422c2bfcd25e2b045848c518111c16b1, type: 3}
+  - {fileID: -170588532, guid: 422c2bfcd25e2b045848c518111c16b1, type: 3}
+  Speed: 12
 --- !u!1 &573632413
 GameObject:
   m_ObjectHideFlags: 0
@@ -1653,6 +1674,81 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1517206082}
   m_CullTransparentMesh: 1
+--- !u!1 &1656233455
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1656233456}
+  - component: {fileID: 1656233458}
+  - component: {fileID: 1656233457}
+  m_Layer: 5
+  m_Name: GameoverProductImagee
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1656233456
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1656233455}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2089783643}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 1920, y: 1080}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1656233457
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1656233455}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 0, b: 0, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  m_Type: 1
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &1656233458
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1656233455}
+  m_CullTransparentMesh: 1
 --- !u!1 &1762866816 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 1412755338095546145, guid: 6a3507da551542640b0e54cd36d18c73, type: 3}
@@ -1930,6 +2026,7 @@ MonoBehaviour:
   ResumeText: {fileID: 573632415}
   TitleBackText: {fileID: 1517206084}
   gameRoot: {fileID: 1477441912}
+  GameOverProductionImage: {fileID: 1656233457}
 --- !u!4 &2057628799
 Transform:
   m_ObjectHideFlags: 0
@@ -2043,6 +2140,7 @@ RectTransform:
   - {fileID: 2004575699}
   - {fileID: 909989583}
   - {fileID: 1059828000}
+  - {fileID: 1656233456}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}

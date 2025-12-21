@@ -15,11 +15,11 @@ public class PlayerDie : MonoBehaviour
     public Image TitleImage;
 
     [Header("Pause UI")]
-    public GameObject PausePanel;      // ポーズ画面Panel
-    public TMP_Text ResumeText;        // 「ゲームに戻る」
-    public TMP_Text TitleBackText;     // 「タイトルに戻る」
+    public GameObject PausePanel;
+    public TMP_Text ResumeText;
+    public TMP_Text TitleBackText;
 
-    public GameObject gameRoot;        // ゲーム中オブジェクトの親
+    public GameObject gameRoot;
 
     InputSystem_Actions input;
 
@@ -28,14 +28,22 @@ public class PlayerDie : MonoBehaviour
 
     bool transitioning = false;
 
-    // 0 = Resume / 1 = Title
     int pauseSelection = 0;
 
-    // 色指定
     readonly Color selectedColor = Color.red;
     readonly Color normalColor = Color.black;
 
+    [Header("Game Over Production")]
     public Image GameOverProductionImage;
+
+    [Tooltip("暗転フェードイン時間（0→1）")]
+    public float fadeInDuration = 0.6f;
+
+    [Tooltip("暗転が完全に見えた後の待ち時間")]
+    public float afterFadeHoldSeconds = 1.0f;
+
+    [Tooltip("GAME OVER表示時間")]
+    public float gameOverShowDuration = 1.0f;
 
     void Awake()
     {
@@ -45,7 +53,6 @@ public class PlayerDie : MonoBehaviour
     void OnEnable()
     {
         input.UI.Enable();
-
         input.UI.Submit.performed += OnSubmit;
         input.UI.GameStop.performed += OnGameStop;
         input.UI.UpButton.performed += OnTogglePauseSelection;
@@ -58,21 +65,17 @@ public class PlayerDie : MonoBehaviour
         input.UI.GameStop.performed -= OnGameStop;
         input.UI.UpButton.performed -= OnTogglePauseSelection;
         input.UI.DownButton.performed -= OnTogglePauseSelection;
-
         input.UI.Disable();
-
-        // 念のため
         Time.timeScale = 1f;
     }
 
     void Start()
     {
-        GameOverProductionImage.enabled = false;
+        InitOverlay();
+
         if (GameOverImage != null) GameOverImage.enabled = false;
         if (TitleImage != null) TitleImage.enabled = true;
-
         if (PausePanel != null) PausePanel.SetActive(false);
-
         if (gameRoot != null) gameRoot.SetActive(false);
 
         if (spawner != null)
@@ -81,7 +84,6 @@ public class PlayerDie : MonoBehaviour
             spawner.enabled = false;
         }
 
-        Time.timeScale = 1f;
         state = State.Title;
     }
 
@@ -91,15 +93,13 @@ public class PlayerDie : MonoBehaviour
         if (player == null || spawner == null) return;
 
         var enemies = spawner.GetSpawnedEnemies();
-        Vector3 playerPos = player.position;
         float dieDistSq = dieDistance * dieDistance;
 
-        for (int i = enemies.Count - 1; i >= 0; i--)
+        foreach (var enemy in enemies)
         {
-            var enemyGO = enemies[i];
-            if (enemyGO == null) continue;
+            if (enemy == null) continue;
 
-            if ((enemyGO.transform.position - playerPos).sqrMagnitude <= dieDistSq)
+            if ((enemy.transform.position - player.position).sqrMagnitude <= dieDistSq)
             {
                 OnGameOver();
                 break;
@@ -128,10 +128,8 @@ public class PlayerDie : MonoBehaviour
 
         if (state == State.Stop)
         {
-            if (pauseSelection == 0)
-                ResumeFromStop();
-            else
-                ShowTitle();
+            if (pauseSelection == 0) ResumeFromStop();
+            else ShowTitle();
         }
     }
 
@@ -139,33 +137,30 @@ public class PlayerDie : MonoBehaviour
     {
         if (transitioning) return;
 
-        if (state == State.Playing)
-            EnterStop();
-        else if (state == State.Stop)
-            ResumeFromStop();
+        if (state == State.Playing) EnterStop();
+        else if (state == State.Stop) ResumeFromStop();
     }
 
     void OnTogglePauseSelection(InputAction.CallbackContext ctx)
     {
         if (state != State.Stop) return;
 
-        pauseSelection = 1 - pauseSelection; // 0⇔1
+        pauseSelection = 1 - pauseSelection;
         UpdatePauseHighlight();
     }
 
     // ======================
-    // State transitions
+    // State
     // ======================
     void StartGame()
     {
         transitioning = true;
         state = State.Playing;
 
-        Time.timeScale = 1f;
-
         if (TitleImage != null) TitleImage.enabled = false;
         if (GameOverImage != null) GameOverImage.enabled = false;
-        if (PausePanel != null) PausePanel.SetActive(false);
+
+        InitOverlay();
 
         if (gameRoot != null) gameRoot.SetActive(true);
 
@@ -176,55 +171,37 @@ public class PlayerDie : MonoBehaviour
         }
 
         transitioning = false;
-        Debug.Log("[State] StartGame");
     }
 
     void EnterStop()
     {
         state = State.Stop;
-
-        pauseSelection = 0; // 初期は「ゲームに戻る」
+        pauseSelection = 0;
         UpdatePauseHighlight();
 
         if (PausePanel != null) PausePanel.SetActive(true);
-
         Time.timeScale = 0f;
-
-        if (spawner != null)
-        {
-            spawner.StopSpawn();
-            spawner.enabled = false;
-        }
-
-        Debug.Log("[State] Stop (Paused)");
     }
 
     void ResumeFromStop()
     {
         state = State.Playing;
-
         if (PausePanel != null) PausePanel.SetActive(false);
-
         Time.timeScale = 1f;
-
-        if (spawner != null)
-        {
-            spawner.enabled = true;
-            spawner.StartSpawn();
-        }
-
-        Debug.Log("[State] Resume (Unpaused)");
     }
 
     void UpdatePauseHighlight()
     {
         if (ResumeText != null)
-            ResumeText.color = (pauseSelection == 0) ? selectedColor : normalColor;
+            ResumeText.color = pauseSelection == 0 ? selectedColor : normalColor;
 
         if (TitleBackText != null)
-            TitleBackText.color = (pauseSelection == 1) ? selectedColor : normalColor;
+            TitleBackText.color = pauseSelection == 1 ? selectedColor : normalColor;
     }
 
+    // ======================
+    // GameOver
+    // ======================
     void OnGameOver()
     {
         if (state != State.Playing) return;
@@ -232,9 +209,7 @@ public class PlayerDie : MonoBehaviour
         transitioning = true;
         state = State.GameOver;
 
-        Time.timeScale = 1f;
-
-        if (PausePanel != null) PausePanel.SetActive(false);
+        if (gameRoot != null) gameRoot.SetActive(false);
 
         if (spawner != null)
         {
@@ -242,50 +217,83 @@ public class PlayerDie : MonoBehaviour
             spawner.enabled = false;
         }
 
-        if (gameRoot != null) gameRoot.SetActive(false);
+        StartCoroutine(FadeInWaitDisableThenGameOver());
+    }
 
+    IEnumerator FadeInWaitDisableThenGameOver()
+    {
+        if (GameOverProductionImage == null)
+        {
+            StartCoroutine(GameOverSequence());
+            yield break;
+        }
+
+        // フェードイン開始（見えてない → 見える）
+        GameOverProductionImage.enabled = true;
+        SetOverlayAlpha(0f);
+
+        float elapsed = 0f;
+        float dur = Mathf.Max(0.0001f, fadeInDuration);
+
+        while (elapsed < dur)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / dur);
+            SetOverlayAlpha(Mathf.Lerp(0f, 1f, t));
+            yield return null;
+        }
+
+        // 完全に見えた状態
+        SetOverlayAlpha(1f);
+
+        // ★1秒待つ
+        yield return new WaitForSecondsRealtime(afterFadeHoldSeconds);
+
+        // ★暗転画像を消す
+        GameOverProductionImage.enabled = false;
+
+        // ★ゲームオーバー表示開始
         StartCoroutine(GameOverSequence());
     }
 
     IEnumerator GameOverSequence()
     {
-        //ゲームオーバーになったらプレイヤーの死亡演出を追加する
-        GameOverProductionImage.enabled = true;
-        //少しずつ透明度を下げて
-
-
-
         if (GameOverImage != null) GameOverImage.enabled = true;
 
-        yield return new WaitForSecondsRealtime(1f);
+        yield return new WaitForSecondsRealtime(gameOverShowDuration);
 
         if (GameOverImage != null) GameOverImage.enabled = false;
         if (TitleImage != null) TitleImage.enabled = true;
 
+        state = State.Title;
         transitioning = false;
-        Debug.Log("[State] GameOver -> Title");
     }
 
     void ShowTitle()
     {
-        transitioning = true;
         state = State.Title;
-
-        Time.timeScale = 1f;
 
         if (TitleImage != null) TitleImage.enabled = true;
         if (GameOverImage != null) GameOverImage.enabled = false;
-        if (PausePanel != null) PausePanel.SetActive(false);
 
-        if (gameRoot != null) gameRoot.SetActive(false);
+        InitOverlay();
+    }
 
-        if (spawner != null)
-        {
-            spawner.StopSpawn();
-            spawner.enabled = false;
-        }
+    // ======================
+    // Helpers
+    // ======================
+    void InitOverlay()
+    {
+        if (GameOverProductionImage == null) return;
 
-        transitioning = false;
-        Debug.Log("[State] ShowTitle");
+        GameOverProductionImage.enabled = false;
+        SetOverlayAlpha(0f);
+    }
+
+    void SetOverlayAlpha(float a)
+    {
+        var c = GameOverProductionImage.color;
+        c.a = Mathf.Clamp01(a);
+        GameOverProductionImage.color = c;
     }
 }
