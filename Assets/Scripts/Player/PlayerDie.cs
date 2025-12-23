@@ -1,4 +1,4 @@
-using UnityEngine;
+Ôªøusing UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using UnityEngine.InputSystem;
@@ -33,17 +33,46 @@ public class PlayerDie : MonoBehaviour
     readonly Color selectedColor = Color.red;
     readonly Color normalColor = Color.black;
 
+    // ======================
+    // Player Damage Visual
+    // ======================
+    [Header("Player Damage Visual")]
+    [Tooltip("Êú™Ë®≠ÂÆö„Å™„Çâ player „Åã„ÇâËá™ÂãïÂèñÂæó")]
+    public SpriteRenderer playerRenderer;
+
+    [Range(0f, 1f)]
+    public float damageRedStrength = 0.75f;
+
+    public float damageHold = 0.05f;
+    public float damageFadeDuration = 0.5f;
+
+    // ======================
+    // Slow Motion
+    // ======================
+    [Header("Slow Motion")]
+    public bool enableSlowMotion = true;
+    public float slowMoDurationRealtime = 1.0f;
+
+    [Range(0.01f, 1f)]
+    public float slowMoTimeScale = 0.2f;
+
+    // ======================
+    // Disable Control (NEW)
+    // ======================
+    [Header("Player Control Scripts")]
+    [Tooltip("Êú™Ë®≠ÂÆö„Å™„Çâ player „Åã„ÇâËá™ÂãïÂèñÂæó")]
+    public PlayerController playerController;
+
+    [Tooltip("Êú™Ë®≠ÂÆö„Å™„Çâ„Ç∑„Éº„É≥/Player„Åã„ÇâËá™ÂãïÂèñÂæóÔºàÂºæÁô∫Â∞ÑÂÅ¥Ôºâ")]
+    public BulletController bulletController;
+
     [Header("Game Over Production")]
-    public Image GameOverProductionImage;
-
-    [Tooltip("à√ì]ÉtÉFÅ[ÉhÉCÉìéûä‘Åi0Å®1Åj")]
-    public float fadeInDuration = 0.6f;
-
-    [Tooltip("à√ì]Ç™äÆëSÇ…å©Ç¶ÇΩå„ÇÃë“Çøéûä‘")]
-    public float afterFadeHoldSeconds = 1.0f;
-
-    [Tooltip("GAME OVERï\é¶éûä‘")]
     public float gameOverShowDuration = 1.0f;
+
+    Color initialPlayerColor;
+    bool hasInitialPlayerColor = false;
+
+    Coroutine gameOverRoutine;
 
     void Awake()
     {
@@ -66,17 +95,23 @@ public class PlayerDie : MonoBehaviour
         input.UI.UpButton.performed -= OnTogglePauseSelection;
         input.UI.DownButton.performed -= OnTogglePauseSelection;
         input.UI.Disable();
+
         Time.timeScale = 1f;
+        EnablePlayerControls();
     }
 
     void Start()
     {
-        InitOverlay();
-
         if (GameOverImage != null) GameOverImage.enabled = false;
         if (TitleImage != null) TitleImage.enabled = true;
         if (PausePanel != null) PausePanel.SetActive(false);
         if (gameRoot != null) gameRoot.SetActive(false);
+
+        AutoBindPlayerRefs();
+
+        CacheInitialPlayerColorIfNeeded();
+        ResetPlayerVisual();
+        EnablePlayerControls();
 
         if (spawner != null)
         {
@@ -160,9 +195,13 @@ public class PlayerDie : MonoBehaviour
         if (TitleImage != null) TitleImage.enabled = false;
         if (GameOverImage != null) GameOverImage.enabled = false;
 
-        InitOverlay();
-
         if (gameRoot != null) gameRoot.SetActive(true);
+
+        AutoBindPlayerRefs();
+
+        CacheInitialPlayerColorIfNeeded();
+        ResetPlayerVisual();
+        EnablePlayerControls();
 
         if (spawner != null)
         {
@@ -209,7 +248,10 @@ public class PlayerDie : MonoBehaviour
         transitioning = true;
         state = State.GameOver;
 
-        if (gameRoot != null) gameRoot.SetActive(false);
+        // ‚òÖË¢´Âºæ„Åó„ÅüÁû¨Èñì„Åã„ÇâÁßªÂãï„ÉªÊîªÊíÉ„ÇíÂÅúÊ≠¢
+        DisablePlayerControls();
+
+        if (PausePanel != null) PausePanel.SetActive(false);
 
         if (spawner != null)
         {
@@ -217,43 +259,75 @@ public class PlayerDie : MonoBehaviour
             spawner.enabled = false;
         }
 
-        StartCoroutine(FadeInWaitDisableThenGameOver());
+        if (gameOverRoutine != null) StopCoroutine(gameOverRoutine);
+        gameOverRoutine = StartCoroutine(DeathFlow());
     }
 
-    IEnumerator FadeInWaitDisableThenGameOver()
+    IEnumerator DeathFlow()
     {
-        if (GameOverProductionImage == null)
+        // 1) ÂÖ®Âì°„Çπ„É≠„ÉºÔºàÂÆüÊôÇÈñì1ÁßíÔºâ
+        if (enableSlowMotion)
+            yield return StartCoroutine(PlaySlowMotion());
+
+        // 2) „Éó„É¨„Ç§„É§„ÉºËµ§Ôºã„Éï„Çß„Éº„Éâ
+        if (playerRenderer != null)
+            yield return StartCoroutine(PlayPlayerDamageFade(playerRenderer));
+
+        // 3) „Ç≤„Éº„É†Êú¨‰ΩìÂÅúÊ≠¢
+        if (gameRoot != null) gameRoot.SetActive(false);
+
+        // 4) GAME OVER Ë°®Á§∫
+        yield return StartCoroutine(GameOverSequence());
+    }
+
+    IEnumerator PlaySlowMotion()
+    {
+        float prevScale = Time.timeScale;
+        float prevFixed = Time.fixedDeltaTime;
+
+        float s = Mathf.Clamp(slowMoTimeScale, 0.01f, 1f);
+        Time.timeScale = s;
+        Time.fixedDeltaTime = prevFixed * s;
+
+        float wait = Mathf.Max(0f, slowMoDurationRealtime);
+        if (wait > 0f)
+            yield return new WaitForSecondsRealtime(wait);
+
+        Time.timeScale = prevScale;
+        Time.fixedDeltaTime = prevFixed;
+    }
+
+    IEnumerator PlayPlayerDamageFade(SpriteRenderer sr)
+    {
+        CacheInitialPlayerColorIfNeeded();
+
+        Color baseColor = hasInitialPlayerColor ? initialPlayerColor : sr.color;
+
+        Color redColor = Color.Lerp(baseColor, Color.red, damageRedStrength);
+        redColor.a = baseColor.a;
+        sr.color = redColor;
+
+        if (damageHold > 0f)
+            yield return new WaitForSecondsRealtime(damageHold);
+
+        float dur = Mathf.Max(0.0001f, damageFadeDuration);
+        float t = 0f;
+
+        while (t < dur)
         {
-            StartCoroutine(GameOverSequence());
-            yield break;
-        }
+            t += Time.unscaledDeltaTime;
+            float a = Mathf.Clamp01(t / dur);
 
-        // ÉtÉFÅ[ÉhÉCÉìäJénÅiå©Ç¶ÇƒÇ»Ç¢ Å® å©Ç¶ÇÈÅj
-        GameOverProductionImage.enabled = true;
-        SetOverlayAlpha(0f);
+            Color c = redColor;
+            c.a = Mathf.Lerp(baseColor.a, 0f, a);
+            sr.color = c;
 
-        float elapsed = 0f;
-        float dur = Mathf.Max(0.0001f, fadeInDuration);
-
-        while (elapsed < dur)
-        {
-            elapsed += Time.unscaledDeltaTime;
-            float t = Mathf.Clamp01(elapsed / dur);
-            SetOverlayAlpha(Mathf.Lerp(0f, 1f, t));
             yield return null;
         }
 
-        // äÆëSÇ…å©Ç¶ÇΩèÛë‘
-        SetOverlayAlpha(1f);
-
-        // Åö1ïbë“Ç¬
-        yield return new WaitForSecondsRealtime(afterFadeHoldSeconds);
-
-        // Åöà√ì]âÊëúÇè¡Ç∑
-        GameOverProductionImage.enabled = false;
-
-        // ÅöÉQÅ[ÉÄÉIÅ[ÉoÅ[ï\é¶äJén
-        StartCoroutine(GameOverSequence());
+        Color end = sr.color;
+        end.a = 0f;
+        sr.color = end;
     }
 
     IEnumerator GameOverSequence()
@@ -276,24 +350,74 @@ public class PlayerDie : MonoBehaviour
         if (TitleImage != null) TitleImage.enabled = true;
         if (GameOverImage != null) GameOverImage.enabled = false;
 
-        InitOverlay();
+        AutoBindPlayerRefs();
+
+        CacheInitialPlayerColorIfNeeded();
+        ResetPlayerVisual();
+
+        EnablePlayerControls();
+
+        if (PausePanel != null) PausePanel.SetActive(false);
+
+        Time.timeScale = 1f;
+    }
+
+    // ======================
+    // Control ON/OFF
+    // ======================
+    void DisablePlayerControls()
+    {
+        if (playerController != null) playerController.ControlEnabled = false;
+        if (bulletController != null) bulletController.ControlEnabled = false;
+    }
+
+    void EnablePlayerControls()
+    {
+        if (playerController != null) playerController.ControlEnabled = true;
+        if (bulletController != null) bulletController.ControlEnabled = true;
+    }
+
+    // ======================
+    // Auto Bind
+    // ======================
+    void AutoBindPlayerRefs()
+    {
+        if (playerRenderer == null && player != null)
+            playerRenderer = player.GetComponentInChildren<SpriteRenderer>(true);
+
+        if (playerController == null && player != null)
+            playerController = player.GetComponentInChildren<PlayerController>(true);
+
+        // BulletController „ÅØ player ÈÖç‰∏ã„Åò„ÇÉ„Å™„ÅÑÂ†¥Âêà„ÇÇ„ÅÇ„Çã„ÅÆ„Åß„ÄÅ„Åæ„Åö player ÈÖç‰∏ã ‚Üí „ÉÄ„É°„Å™„Çâ„Ç∑„Éº„É≥Ê§úÁ¥¢Ôºà1Âõû„Å†„ÅëÔºâ
+        if (bulletController == null)
+        {
+            if (player != null)
+                bulletController = player.GetComponentInChildren<BulletController>(true);
+
+            if (bulletController == null)
+                bulletController = FindFirstObjectByType<BulletController>();
+        }
     }
 
     // ======================
     // Helpers
     // ======================
-    void InitOverlay()
+    void CacheInitialPlayerColorIfNeeded()
     {
-        if (GameOverProductionImage == null) return;
+        if (hasInitialPlayerColor) return;
+        if (playerRenderer == null) return;
 
-        GameOverProductionImage.enabled = false;
-        SetOverlayAlpha(0f);
+        initialPlayerColor = playerRenderer.color;
+        hasInitialPlayerColor = true;
     }
 
-    void SetOverlayAlpha(float a)
+    void ResetPlayerVisual()
     {
-        var c = GameOverProductionImage.color;
-        c.a = Mathf.Clamp01(a);
-        GameOverProductionImage.color = c;
+        if (playerRenderer == null) return;
+
+        Color c = hasInitialPlayerColor ? initialPlayerColor : playerRenderer.color;
+        if (c.a <= 0f) c.a = 1f;
+        playerRenderer.color = c;
+        playerRenderer.enabled = true;
     }
 }

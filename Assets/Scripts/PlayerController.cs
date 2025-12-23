@@ -18,6 +18,10 @@ public class PlayerController : MonoBehaviour
 
     public bool IsMoving = false;
 
+    [Header("Control")]
+    [Tooltip("false の間は移動入力を受け付けない")]
+    public bool ControlEnabled = true;
+
     private void Awake()
     {
         input = new InputSystem_Actions();
@@ -40,6 +44,14 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
+        // 操作不能中は完全停止（アニメも止める）
+        if (!ControlEnabled)
+        {
+            IsMoving = false;
+            if (anim != null) anim.SetBool("iswalk", false);
+            return;
+        }
+
         // 入力取得（上下：W/S or Stick）
         Vector2 move = input.Player.Move.ReadValue<Vector2>();
 
@@ -55,7 +67,7 @@ public class PlayerController : MonoBehaviour
             // 入力に応じて上下移動
             pos.y += move.y * Speed * Time.deltaTime;
 
-            // ｙ座標を制限（-4 ～ 6）
+            // ｙ座標を制限
             pos.y = Mathf.Clamp(pos.y, LimitDown, LimitUp);
 
             // 位置を反映
