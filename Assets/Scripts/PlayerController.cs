@@ -9,6 +9,10 @@ public class PlayerController : MonoBehaviour
     // 実際に動かすプレイヤー
     public Transform Player;
 
+    [Header("Move Limit (X)")]
+    public float LimitLeft = -8f;
+    public float LimitRight = 8f;
+
     [Header("Move Limit (Y)")]
     public float LimitDown = -4f;
     public float LimitUp = 6f;
@@ -52,7 +56,7 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // 入力取得（上下：W/S or Stick）
+        // 入力取得（WASD / スティック）
         Vector2 move = input.Player.Move.ReadValue<Vector2>();
 
         if (move.sqrMagnitude > 0.01f)
@@ -61,16 +65,16 @@ public class PlayerController : MonoBehaviour
             if (anim != null)
                 anim.SetBool("iswalk", true);
 
-            // 現在位置を取得
             Vector3 pos = Player.position;
 
-            // 入力に応じて上下移動
+            // X,Y 両方動かす
+            pos.x += move.x * Speed * Time.deltaTime;
             pos.y += move.y * Speed * Time.deltaTime;
 
-            // ｙ座標を制限
+            // 移動制限
+            pos.x = Mathf.Clamp(pos.x, LimitLeft, LimitRight);
             pos.y = Mathf.Clamp(pos.y, LimitDown, LimitUp);
 
-            // 位置を反映
             Player.position = pos;
         }
         else

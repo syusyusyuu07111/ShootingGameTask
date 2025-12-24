@@ -955,9 +955,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   Speed: 5
   Player: {fileID: 512384776}
+  LimitLeft: -10
+  LimitRight: 10
   LimitDown: -4
   LimitUp: 6
   IsMoving: 0
+  ControlEnabled: 1
 --- !u!114 &512384778
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -974,6 +977,7 @@ MonoBehaviour:
   player: {fileID: 512384776}
   FireInterval: 0.2
   fireTimer: 0
+  ControlEnabled: 1
 --- !u!114 &512384779
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1674,7 +1678,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1517206082}
   m_CullTransparentMesh: 1
---- !u!1 &1656233455
+--- !u!1 &1707575378
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1682,73 +1686,127 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1656233456}
-  - component: {fileID: 1656233458}
-  - component: {fileID: 1656233457}
-  m_Layer: 5
-  m_Name: GameoverProductImagee
+  - component: {fileID: 1707575380}
+  - component: {fileID: 1707575379}
+  m_Layer: 0
+  m_Name: Audio Source
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!224 &1656233456
-RectTransform:
+--- !u!82 &1707575379
+AudioSource:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1656233455}
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_GameObject: {fileID: 1707575378}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 0
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!4 &1707575380
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1707575378}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 486.13028, y: 0.00003, z: 80.8479}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 2089783643}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 1920, y: 1080}
-  m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1656233457
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1656233455}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
-  m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 0, b: 0, a: 1}
-  m_RaycastTarget: 1
-  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
-  m_Maskable: 1
-  m_OnCullStateChanged:
-    m_PersistentCalls:
-      m_Calls: []
-  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
-  m_Type: 1
-  m_PreserveAspect: 0
-  m_FillCenter: 1
-  m_FillMethod: 4
-  m_FillAmount: 1
-  m_FillClockwise: 1
-  m_FillOrigin: 0
-  m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 1
---- !u!222 &1656233458
-CanvasRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1656233455}
-  m_CullTransparentMesh: 1
 --- !u!1 &1762866816 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 1412755338095546145, guid: 6a3507da551542640b0e54cd36d18c73, type: 3}
@@ -1998,6 +2056,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2057628799}
   - component: {fileID: 2057628798}
+  - component: {fileID: 2057628800}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -2026,7 +2085,22 @@ MonoBehaviour:
   ResumeText: {fileID: 573632415}
   TitleBackText: {fileID: 1517206084}
   gameRoot: {fileID: 1477441912}
-  GameOverProductionImage: {fileID: 1656233457}
+  bgm: {fileID: 2057628800}
+  seSource: {fileID: 1707575379}
+  hitOneShot: {fileID: 8300000, guid: 436d3b3fcaf719d46b6a7802abf51ff2, type: 3}
+  hitOneShotVolume: 0.617
+  playerRenderer: {fileID: 512384775}
+  damageRedStrength: 0.75
+  damageHold: 0.05
+  damageFadeDuration: 0.5
+  enableSlowMotion: 1
+  slowMoDurationRealtime: 1
+  slowMoTimeScale: 0.2
+  playerController: {fileID: 512384777}
+  bulletController: {fileID: 512384778}
+  gameOverShowDuration: 1
+  playerSpawnPoint: {fileID: 0}
+  resetPositionOnStartGame: 1
 --- !u!4 &2057628799
 Transform:
   m_ObjectHideFlags: 0
@@ -2042,6 +2116,24 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2057628800
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2057628797}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 80ffd26a18d3f864c8998946d448fd2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BGMManager
+  bgmSource: {fileID: 1707575379}
+  titleBgm: {fileID: 8300000, guid: 36538eabcdab8c647ada95b028e0c6be, type: 3}
+  gameBgm: {fileID: 8300000, guid: b239e5ce8f2c5be43ad6c419aa9ee2df, type: 3}
+  gameOverBgm: {fileID: 8300000, guid: 021c488711f23ed4b8ddfdfd4a1132f7, type: 3}
+  fadeTime: 0.4
+  defaultVolume: 1
 --- !u!1 &2089783639
 GameObject:
   m_ObjectHideFlags: 0
@@ -2140,7 +2232,6 @@ RectTransform:
   - {fileID: 2004575699}
   - {fileID: 909989583}
   - {fileID: 1059828000}
-  - {fileID: 1656233456}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -2236,3 +2327,4 @@ SceneRoots:
   - {fileID: 212090011}
   - {fileID: 251744223}
   - {fileID: 67951253}
+  - {fileID: 1707575380}

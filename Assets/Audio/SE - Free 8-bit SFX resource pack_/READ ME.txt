@@ -1,0 +1,22 @@
+SE - Free 8-bit SFX resource pack?
+
+
+This is a package of sound resources made by me, and made available for free.
+
+The intention is just to help those looking for fast and free sound effects to use in your project, feel free to use this package in any project, be it commercial or non-commercial.
+
+Contains the following effects
+
+Cancel or Gun - 7 Sounds
+Explosion - 12 Sounds
+Get-item - 11 Sounds
+Hit - 5 Sounds
+Jump - 11 Sounds
+Power-up - 11 Sounds
+
+
+Created by Carlos Basilio - RetroHeart in the tool
+Bfxr
+
+My Channel : https://www.youtube.com/carlosbasiliojunior
+

@@ -98,3 +98,5 @@ InitTestScene*.unity*
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
 Assets/Fonts/AkazukiPOP SDF.asset
+Assets/Audio/ダンジョン_loop.wav
+Assets/Audio/タイトル画面のBGM.wav

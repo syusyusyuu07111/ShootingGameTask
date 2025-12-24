@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using System.Collections;
 using UnityEngine.InputSystem;
 using TMPro;
+using System.Linq;
 
 public class PlayerDie : MonoBehaviour
 {
@@ -34,6 +35,26 @@ public class PlayerDie : MonoBehaviour
     readonly Color normalColor = Color.black;
 
     // ======================
+    // BGM
+    // ======================
+    [Header("BGM")]
+    [Tooltip("未設定ならシーンから自動取得")]
+    public BGMManager bgm;
+
+    // ======================
+    // SE (One Shot)
+    // ======================
+    [Header("SE (One Shot)")]
+    [Tooltip("未設定ならこのオブジェクトから自動取得")]
+    public AudioSource seSource;
+
+    [Tooltip("被弾（死亡）した瞬間に鳴らすSE")]
+    public AudioClip hitOneShot;
+
+    [Range(0f, 1f)]
+    public float hitOneShotVolume = 1.0f;
+
+    // ======================
     // Player Damage Visual
     // ======================
     [Header("Player Damage Visual")]
@@ -57,7 +78,7 @@ public class PlayerDie : MonoBehaviour
     public float slowMoTimeScale = 0.2f;
 
     // ======================
-    // Disable Control (NEW)
+    // Disable Control
     // ======================
     [Header("Player Control Scripts")]
     [Tooltip("未設定なら player から自動取得")]
@@ -67,7 +88,20 @@ public class PlayerDie : MonoBehaviour
     public BulletController bulletController;
 
     [Header("Game Over Production")]
-    public float gameOverShowDuration = 1.0f;
+    public float gameOverShowDuration = 3.0f;
+
+    // ======================
+    // Player Reset
+    // ======================
+    [Header("Player Reset")]
+    [Tooltip("タイトルに戻ったとき、プレイヤー位置をここに戻す。未設定なら Start 時の位置を使う")]
+    public Transform playerSpawnPoint;
+
+    [Tooltip("StartGame 時にもリセットする（安全）")]
+    public bool resetPositionOnStartGame = true;
+
+    Vector3 initialPlayerPosition;
+    bool hasInitialPlayerPosition = false;
 
     Color initialPlayerColor;
     bool hasInitialPlayerColor = false;
@@ -107,19 +141,32 @@ public class PlayerDie : MonoBehaviour
         if (PausePanel != null) PausePanel.SetActive(false);
         if (gameRoot != null) gameRoot.SetActive(false);
 
+        // BGM自動取得
+        if (bgm == null)
+            bgm = FindFirstObjectByType<BGMManager>();
+
+        // SE Source 自動取得
+        if (seSource == null)
+            seSource = GetComponent<AudioSource>();
+        if (seSource != null)
+            seSource.playOnAwake = false;
+
         AutoBindPlayerRefs();
 
         CacheInitialPlayerColorIfNeeded();
         ResetPlayerVisual();
         EnablePlayerControls();
 
-        if (spawner != null)
-        {
-            spawner.StopSpawn();
-            spawner.enabled = false;
-        }
+        CacheInitialPlayerPositionIfNeeded();
+        ResetPlayerPosition();
+
+        // ★タイトル初期化として「敵スポーン状態」を完全に戻す
+        ResetSpawnerAndEnemies();
 
         state = State.Title;
+
+        // タイトルBGM
+        if (bgm != null) bgm.PlayTitle();
     }
 
     void Update()
@@ -203,6 +250,13 @@ public class PlayerDie : MonoBehaviour
         ResetPlayerVisual();
         EnablePlayerControls();
 
+        CacheInitialPlayerPositionIfNeeded();
+        if (resetPositionOnStartGame) ResetPlayerPosition();
+
+        // ★開始前に「敵スポーン状態」を完全に戻す（ここが一番効く）
+        ResetSpawnerAndEnemies();
+
+        // Spawner開始
         if (spawner != null)
         {
             spawner.enabled = true;
@@ -210,6 +264,9 @@ public class PlayerDie : MonoBehaviour
         }
 
         transitioning = false;
+
+        // ゲームBGM
+        if (bgm != null) bgm.PlayGame();
     }
 
     void EnterStop()
@@ -248,7 +305,10 @@ public class PlayerDie : MonoBehaviour
         transitioning = true;
         state = State.GameOver;
 
-        // ★被弾した瞬間から移動・攻撃を停止
+        // 1) 被弾の瞬間にワンショットSE（操作停止より前）
+        PlayHitOneShot();
+
+        // 2) その直後から移動・攻撃を停止
         DisablePlayerControls();
 
         if (PausePanel != null) PausePanel.SetActive(false);
@@ -259,8 +319,24 @@ public class PlayerDie : MonoBehaviour
             spawner.enabled = false;
         }
 
+        // ゲームオーバーBGM
+        if (bgm != null) bgm.PlayGameOver();
+
         if (gameOverRoutine != null) StopCoroutine(gameOverRoutine);
         gameOverRoutine = StartCoroutine(DeathFlow());
+    }
+
+    void PlayHitOneShot()
+    {
+        if (hitOneShot == null) return;
+
+        if (seSource == null)
+        {
+            AudioSource.PlayClipAtPoint(hitOneShot, player != null ? player.position : Vector3.zero, hitOneShotVolume);
+            return;
+        }
+
+        seSource.PlayOneShot(hitOneShot, hitOneShotVolume);
     }
 
     IEnumerator DeathFlow()
@@ -341,6 +417,13 @@ public class PlayerDie : MonoBehaviour
 
         state = State.Title;
         transitioning = false;
+
+        // ★タイトルに戻る瞬間に「位置」と「敵スポーン状態」をリセット
+        ResetPlayerPosition();
+        ResetSpawnerAndEnemies();
+
+        // タイトルBGM
+        if (bgm != null) bgm.PlayTitle();
     }
 
     void ShowTitle()
@@ -357,9 +440,46 @@ public class PlayerDie : MonoBehaviour
 
         EnablePlayerControls();
 
+        CacheInitialPlayerPositionIfNeeded();
+        ResetPlayerPosition();
+
+        // ★敵スポーン状態も最初に戻す
+        ResetSpawnerAndEnemies();
+
         if (PausePanel != null) PausePanel.SetActive(false);
 
         Time.timeScale = 1f;
+
+        if (bgm != null) bgm.PlayTitle();
+    }
+
+    // ======================
+    // Enemy Reset (NEW)
+    // ======================
+    void ResetSpawnerAndEnemies()
+    {
+        if (spawner == null) return;
+
+        // スポーン停止＆Spawner無効化
+        spawner.StopSpawn();
+        spawner.enabled = false;
+
+        // 現在スポーン済みの敵を全消し
+        var enemies = spawner.GetSpawnedEnemies();
+        if (enemies == null) return;
+
+        // foreach中にリストが変わる可能性があるので、一旦配列へ退避してから消す
+        var snapshot = enemies.ToArray();
+
+        for (int i = 0; i < snapshot.Length; i++)
+        {
+            var e = snapshot[i];
+            if (e == null) continue;
+
+            // 敵が子を持ってるならrootごと消したい場合は transform.root を使う
+            // ここは「spawnされた敵オブジェクト」を消す想定でそのままDestroy
+            Destroy(e);
+        }
     }
 
     // ======================
@@ -388,7 +508,6 @@ public class PlayerDie : MonoBehaviour
         if (playerController == null && player != null)
             playerController = player.GetComponentInChildren<PlayerController>(true);
 
-        // BulletController は player 配下じゃない場合もあるので、まず player 配下 → ダメならシーン検索（1回だけ）
         if (bulletController == null)
         {
             if (player != null)
@@ -400,7 +519,33 @@ public class PlayerDie : MonoBehaviour
     }
 
     // ======================
-    // Helpers
+    // Player Position Reset
+    // ======================
+    void CacheInitialPlayerPositionIfNeeded()
+    {
+        if (hasInitialPlayerPosition) return;
+        if (player == null) return;
+
+        initialPlayerPosition = player.position;
+        hasInitialPlayerPosition = true;
+    }
+
+    void ResetPlayerPosition()
+    {
+        if (player == null) return;
+
+        if (playerSpawnPoint != null)
+        {
+            player.position = playerSpawnPoint.position;
+            return;
+        }
+
+        if (hasInitialPlayerPosition)
+            player.position = initialPlayerPosition;
+    }
+
+    // ======================
+    // Helpers (Color)
     // ======================
     void CacheInitialPlayerColorIfNeeded()
     {
