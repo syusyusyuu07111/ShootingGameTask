@@ -978,6 +978,10 @@ MonoBehaviour:
   FireInterval: 0.2
   fireTimer: 0
   ControlEnabled: 1
+  seSource: {fileID: 553546350}
+  LaunchSE: {fileID: 8300000, guid: 814619cacda116e4cbe0deb468ca82ea, type: 3}
+  volume: 1
+  minInterval: 0.05
 --- !u!114 &512384779
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1009,7 +1013,7 @@ GameObject:
   - component: {fileID: 553546351}
   - component: {fileID: 553546350}
   m_Layer: 0
-  m_Name: Audio Source (1)
+  m_Name: SE
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1496,6 +1500,10 @@ MonoBehaviour:
   appearanceTime: 3
   enemyPrefab: {fileID: 8068589428734277748, guid: 27bf31f6833d5b742a6b7841e983dd6b, type: 3}
   player: {fileID: 512384776}
+  seSource: {fileID: 553546350}
+  LaunchSE: {fileID: 8300000, guid: 877af0ff4fdd7e74ab457a051b6d98ad, type: 3}
+  volume: 1
+  minInterval: 0.05
 --- !u!4 &929170431
 Transform:
   m_ObjectHideFlags: 0
@@ -2231,9 +2239,16 @@ MonoBehaviour:
   TitleBackText: {fileID: 1517206084}
   gameRoot: {fileID: 1477441912}
   bgm: {fileID: 2057628800}
-  seSource: {fileID: 1707575379}
+  seSource: {fileID: 553546350}
+  startGameOneShot: {fileID: 8300000, guid: b3fe944af517d56489f3ed2ccaf5f268, type: 3}
+  startGameOneShotVolume: 1
   hitOneShot: {fileID: 8300000, guid: 436d3b3fcaf719d46b6a7802abf51ff2, type: 3}
   hitOneShotVolume: 1
+  pauseEnterOneShot: {fileID: 8300000, guid: 3af1a00de21498c4991ceef4985ca01a, type: 3}
+  pauseEnterOneShotVolume: 1
+  pauseExitOneShot: {fileID: 8300000, guid: 3af1a00de21498c4991ceef4985ca01a, type: 3}
+  pauseExitOneShotVolume: 1
+  seMinInterval: 0.03
   playerRenderer: {fileID: 512384775}
   damageRedStrength: 0.75
   damageHold: 0.05
@@ -2278,7 +2293,7 @@ MonoBehaviour:
   gameBgm: {fileID: 8300000, guid: b239e5ce8f2c5be43ad6c419aa9ee2df, type: 3}
   gameOverBgm: {fileID: 8300000, guid: 021c488711f23ed4b8ddfdfd4a1132f7, type: 3}
   fadeTime: 0.4
-  defaultVolume: 0.001
+  defaultVolume: 0.01
 --- !u!1 &2089783639
 GameObject:
   m_ObjectHideFlags: 0

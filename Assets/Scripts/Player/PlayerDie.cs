@@ -61,6 +61,18 @@ public class PlayerDie : MonoBehaviour
     [Range(0f, 1f)]
     public float hitOneShotVolume = 1.0f;
 
+    [Tooltip("ポーズに入った瞬間に鳴らすSE")]
+    public AudioClip pauseEnterOneShot;
+
+    [Range(0f, 1f)]
+    public float pauseEnterOneShotVolume = 1.0f;
+
+    [Tooltip("ポーズ解除の瞬間に鳴らすSE（未設定でもOK）")]
+    public AudioClip pauseExitOneShot;
+
+    [Range(0f, 1f)]
+    public float pauseExitOneShotVolume = 1.0f;
+
     // （任意）多重防止
     [Header("SE Limiter (Optional)")]
     [Tooltip("この秒数以内の連続再生は無視（連打防止）")]
@@ -250,7 +262,7 @@ public class PlayerDie : MonoBehaviour
     // ======================
     void StartGame()
     {
-        // ★タイトル→ゲーム開始の瞬間にSE（最優先で鳴らす）
+        // タイトル→ゲーム開始の瞬間にSE（最優先で鳴らす）
         PlayStartGameOneShot();
 
         transitioning = true;
@@ -288,6 +300,9 @@ public class PlayerDie : MonoBehaviour
 
     void EnterStop()
     {
+        // ★ポーズに入った瞬間のSE
+        PlayPauseEnterOneShot();
+
         state = State.Stop;
         pauseSelection = 0;
         UpdatePauseHighlight();
@@ -298,6 +313,9 @@ public class PlayerDie : MonoBehaviour
 
     void ResumeFromStop()
     {
+        // ★ポーズ解除の瞬間のSE（未設定でもOK）
+        PlayPauseExitOneShot();
+
         state = State.Playing;
         if (PausePanel != null) PausePanel.SetActive(false);
         Time.timeScale = 1f;
@@ -344,13 +362,19 @@ public class PlayerDie : MonoBehaviour
     // ======================
     // SE Play
     // ======================
+    bool CanPlaySe()
+    {
+        if (Time.time - lastSePlayTime < seMinInterval)
+            return false;
+
+        lastSePlayTime = Time.time;
+        return true;
+    }
+
     void PlayStartGameOneShot()
     {
         if (startGameOneShot == null) return;
-
-        if (Time.time - lastSePlayTime < seMinInterval)
-            return;
-        lastSePlayTime = Time.time;
+        if (!CanPlaySe()) return;
 
         if (seSource == null)
         {
@@ -361,13 +385,38 @@ public class PlayerDie : MonoBehaviour
         seSource.PlayOneShot(startGameOneShot, startGameOneShotVolume);
     }
 
+    void PlayPauseEnterOneShot()
+    {
+        if (pauseEnterOneShot == null) return;
+        if (!CanPlaySe()) return;
+
+        if (seSource == null)
+        {
+            AudioSource.PlayClipAtPoint(pauseEnterOneShot, transform.position, pauseEnterOneShotVolume);
+            return;
+        }
+
+        seSource.PlayOneShot(pauseEnterOneShot, pauseEnterOneShotVolume);
+    }
+
+    void PlayPauseExitOneShot()
+    {
+        if (pauseExitOneShot == null) return;
+        if (!CanPlaySe()) return;
+
+        if (seSource == null)
+        {
+            AudioSource.PlayClipAtPoint(pauseExitOneShot, transform.position, pauseExitOneShotVolume);
+            return;
+        }
+
+        seSource.PlayOneShot(pauseExitOneShot, pauseExitOneShotVolume);
+    }
+
     void PlayHitOneShot()
     {
         if (hitOneShot == null) return;
-
-        if (Time.time - lastSePlayTime < seMinInterval)
-            return;
-        lastSePlayTime = Time.time;
+        if (!CanPlaySe()) return;
 
         if (seSource == null)
         {
@@ -388,7 +437,7 @@ public class PlayerDie : MonoBehaviour
         if (playerRenderer != null)
             yield return StartCoroutine(PlayPlayerDamageFade(playerRenderer));
 
-        // ★3) 演出の後でゲームオーバーBGM（SEを邪魔しない）
+        // 3) 演出の後でゲームオーバーBGM（SEを邪魔しない）
         if (bgm != null) bgm.PlayGameOver();
 
         // 4) ゲーム本体停止
