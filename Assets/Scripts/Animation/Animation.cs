@@ -1,43 +1,77 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// 連番スプライトによるアニメーションを制御するコンポーネント
+/// </summary>
 public class Animation : MonoBehaviour
 {
-    // 連番スプライトをInspectorで登録
+    /// <summary>
+    /// アニメーションに使用するスプライトのリスト（Inspectorで設定）
+    /// </summary>
     public List<Sprite> frames = new List<Sprite>();
 
-    public float Speed = 12f;//何秒ごとに画像を変えるか
+    /// <summary>
+    /// 1秒間に何フレーム進めるか（アニメーション速度）
+    /// </summary>
+    public float Speed = 12f;
 
-    int frameIndex = 0;//表示する画像番号
-    float timer = 0f;//前のコマからどのくらい時間がたったか
+    /// <summary>
+    /// 現在表示中のスプライトのインデックス
+    /// </summary>
+    int frameIndex = 0;
 
+    /// <summary>
+    /// 前のフレームからの経過時間
+    /// </summary>
+    float timer = 0f;
+
+    /// <summary>
+    /// スプライトを描画するためのSpriteRenderer
+    /// </summary>
     SpriteRenderer sr;
 
+    /// <summary>
+    /// 初期化処理。SpriteRendererを取得する
+    /// </summary>
     void Awake()
     {
         sr = GetComponent<SpriteRenderer>();
     }
 
+    /// <summary>
+    /// 毎フレーム呼ばれ、アニメーションの進行を制御する
+    /// </summary>
     void Update()
     {
+        // スプライトが設定されていない場合は何もしない
         if (frames.Count == 0)
         {
             return;
         }
 
+        // 経過時間を加算
         timer += Time.deltaTime;
 
+        // 1フレームあたりの表示時間を計算
         float frameTime = 1f / Speed;
+
+        // 経過時間が1フレーム分を超えた場合、次のスプライトへ
         if (timer >= frameTime)
         {
-            timer -= frameTime;//経過時間が指定の秒数に行ったら余った秒を捨てる　かくつかないように0にせずに引く　次のコマに行くときに余った時間を次のコマに持ってく
-            frameIndex++;//indexを足し続ける
-            //indexが最後まで行ったら最初に戻す　今入ってる要素数まで行ったら
+            // 経過時間から1フレーム分を減算（余剰時間は次フレームに持ち越し）
+            timer -= frameTime;
+
+            // 次のスプライトへインデックスを進める
+            frameIndex++;
+
+            // インデックスがリストの範囲外になったら最初に戻す
             if (frameIndex >= frames.Count)
             {
                 frameIndex = 0;
             }
-            //足したindexの画像を表示させる
+
+            // 現在のインデックスのスプライトを表示
             sr.sprite = frames[frameIndex];
         }
     }
