@@ -40,6 +40,10 @@ public class EnemySpawner : MonoBehaviour
 
     float lastPlayTime = -999f;
 
+    /// <summary>
+    /// 初期化処理
+    /// AudioSourceが未設定の場合は自動で取得または追加し、SE再生用の設定を行う
+    /// </summary>
     void Start()
     {
         // AudioSource 自動取得（無ければ追加）
@@ -54,6 +58,10 @@ public class EnemySpawner : MonoBehaviour
         seSource.spatialBlend = 0f; // 2D音（UI/ゲーム共通で聞こえる）
     }
 
+    /// <summary>
+    /// 毎フレーム呼ばれる
+    /// Destroyされた敵がリストに残らないようにリストをクリーンアップする
+    /// </summary>
     void Update()
     {
         // Destroyされた敵がリストに残らないよう毎フレーム掃除
@@ -65,8 +73,8 @@ public class EnemySpawner : MonoBehaviour
     // =========================================================
 
     /// <summary>
-    /// 現在生成されている敵一覧を取得（読み取り）
-    /// PlayerDie などから距離判定に使用
+    /// 現在生成されている敵一覧を取得（読み取り専用）
+    /// 他クラスから敵の参照や距離判定などに利用できる
     /// </summary>
     public IReadOnlyList<GameObject> GetSpawnedEnemies()
     {
@@ -75,7 +83,8 @@ public class EnemySpawner : MonoBehaviour
 
     /// <summary>
     /// 敵のスポーンを開始する
-    /// タイトル → ゲーム開始時 / リトライ時に呼ばれる
+    /// 既にスポーン中の場合は何もしない
+    /// 必要な参照が揃っているかチェックし、問題なければコルーチンでスポーンループを開始する
     /// </summary>
     public void StartSpawn()
     {
@@ -106,7 +115,7 @@ public class EnemySpawner : MonoBehaviour
 
     /// <summary>
     /// 敵のスポーンを停止する
-    /// ポーズ / ゲームオーバー / タイトル遷移時に使用
+    /// スポーン中のコルーチンを停止し、以降敵が生成されなくなる
     /// </summary>
     public void StopSpawn()
     {
@@ -123,7 +132,9 @@ public class EnemySpawner : MonoBehaviour
     // =========================================================
 
     /// <summary>
-    /// 敵を一定間隔で生成し続けるループ
+    /// 敵を一定間隔で生成し続けるコルーチン
+    /// 参照切れやPrefab未設定時は一時停止し、復帰を待つ
+    /// 生成した敵はリストに追加し、SE再生や所有者設定も行う
     /// </summary>
     IEnumerator SpawnLoop()
     {
@@ -150,7 +161,7 @@ public class EnemySpawner : MonoBehaviour
             // 管理リストに追加
             spawned.Add(e);
 
-            // ★敵登場SE（生成した瞬間に鳴らす）
+            // 敵登場SE（生成した瞬間に鳴らす）
             PlayLaunchSE();
 
             // EnemyController があれば Spawner を所有者として渡す
@@ -165,6 +176,11 @@ public class EnemySpawner : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 敵登場時のSEを再生する
+    /// 多重再生防止のため、一定間隔未満では再生しない
+    /// AudioSourceが未設定の場合は一時的にPlayClipAtPointで再生
+    /// </summary>
     void PlayLaunchSE()
     {
         if (LaunchSE == null) return;
@@ -190,8 +206,8 @@ public class EnemySpawner : MonoBehaviour
     // =========================================================
 
     /// <summary>
-    /// 指定した敵インスタンスをSpawner管理下から削除してDestroy
-    /// EnemyController から呼ばれる
+    /// 指定した敵インスタンスをリストから削除し、Destroyする
+    /// 遅延時間を指定可能
     /// </summary>
     public void KillSpawned(GameObject enemyInstance, float delay = 0f)
     {
@@ -206,8 +222,8 @@ public class EnemySpawner : MonoBehaviour
     }
 
     /// <summary>
-    /// 生成済みの敵をすべて削除
-    /// タイトル戻り・リトライ時に使用
+    /// 生成済みの全ての敵を削除し、リストもクリアする
+    /// タイトル戻りやリトライ時に呼び出す
     /// </summary>
     public void ClearAllSpawned()
     {
@@ -220,7 +236,8 @@ public class EnemySpawner : MonoBehaviour
     }
 
     /// <summary>
-    /// Destroy済みオブジェクトをリストから除去
+    /// Destroy済みの敵オブジェクトをリストから除去する
+    /// Updateで毎フレーム呼ばれる
     /// </summary>
     void CleanupList()
     {
@@ -236,9 +253,8 @@ public class EnemySpawner : MonoBehaviour
     // =========================================================
 
     /// <summary>
-    /// カメラ範囲内のランダム位置に敵を出す
-    /// ・X：画面幅内ランダム
-    /// ・Y：プレイヤーより少し上+ランダム
+    /// カメラ範囲内のランダムな位置を計算して返す
+    /// X座標は画面幅内ランダム、Y座標はプレイヤーより上側でランダム
     /// </summary>
     Vector3 GetSpawnPosition(Camera cam)
     {
