@@ -160,7 +160,7 @@ public class PlayerDie : MonoBehaviour
         CacheInitialPlayerPositionIfNeeded();
         ResetPlayerPosition();
 
-        // ★タイトル初期化として「敵スポーン状態」を完全に戻す
+        // タイトル初期化として「敵スポーン状態」を完全に戻す
         ResetSpawnerAndEnemies();
 
         state = State.Title;
@@ -253,7 +253,7 @@ public class PlayerDie : MonoBehaviour
         CacheInitialPlayerPositionIfNeeded();
         if (resetPositionOnStartGame) ResetPlayerPosition();
 
-        // ★開始前に「敵スポーン状態」を完全に戻す（ここが一番効く）
+        // 開始前に「敵スポーン状態」を完全に戻す
         ResetSpawnerAndEnemies();
 
         // Spawner開始
@@ -305,10 +305,11 @@ public class PlayerDie : MonoBehaviour
         transitioning = true;
         state = State.GameOver;
 
-        // 1) 被弾の瞬間にワンショットSE（操作停止より前）
+        // ★被弾した瞬間に「インゲームBGMを即停止」→SEを最優先で鳴らす
+        if (bgm != null) bgm.StopBgmImmediate();
         PlayHitOneShot();
 
-        // 2) その直後から移動・攻撃を停止
+        // ★その直後から移動・攻撃を停止
         DisablePlayerControls();
 
         if (PausePanel != null) PausePanel.SetActive(false);
@@ -318,9 +319,6 @@ public class PlayerDie : MonoBehaviour
             spawner.StopSpawn();
             spawner.enabled = false;
         }
-
-        // ゲームオーバーBGM
-        if (bgm != null) bgm.PlayGameOver();
 
         if (gameOverRoutine != null) StopCoroutine(gameOverRoutine);
         gameOverRoutine = StartCoroutine(DeathFlow());
@@ -349,10 +347,13 @@ public class PlayerDie : MonoBehaviour
         if (playerRenderer != null)
             yield return StartCoroutine(PlayPlayerDamageFade(playerRenderer));
 
-        // 3) ゲーム本体停止
+        // ★3) 演出の後でゲームオーバーBGM（SEを邪魔しない）
+        if (bgm != null) bgm.PlayGameOver();
+
+        // 4) ゲーム本体停止
         if (gameRoot != null) gameRoot.SetActive(false);
 
-        // 4) GAME OVER 表示
+        // 5) GAME OVER 表示
         yield return StartCoroutine(GameOverSequence());
     }
 
@@ -418,7 +419,7 @@ public class PlayerDie : MonoBehaviour
         state = State.Title;
         transitioning = false;
 
-        // ★タイトルに戻る瞬間に「位置」と「敵スポーン状態」をリセット
+        // タイトルに戻る瞬間に「位置」と「敵スポーン状態」をリセット
         ResetPlayerPosition();
         ResetSpawnerAndEnemies();
 
@@ -443,7 +444,7 @@ public class PlayerDie : MonoBehaviour
         CacheInitialPlayerPositionIfNeeded();
         ResetPlayerPosition();
 
-        // ★敵スポーン状態も最初に戻す
+        // 敵スポーン状態も最初に戻す
         ResetSpawnerAndEnemies();
 
         if (PausePanel != null) PausePanel.SetActive(false);
@@ -454,7 +455,7 @@ public class PlayerDie : MonoBehaviour
     }
 
     // ======================
-    // Enemy Reset (NEW)
+    // Enemy Reset
     // ======================
     void ResetSpawnerAndEnemies()
     {
@@ -464,20 +465,15 @@ public class PlayerDie : MonoBehaviour
         spawner.StopSpawn();
         spawner.enabled = false;
 
-        // 現在スポーン済みの敵を全消し
         var enemies = spawner.GetSpawnedEnemies();
         if (enemies == null) return;
 
-        // foreach中にリストが変わる可能性があるので、一旦配列へ退避してから消す
+        // foreach中にリストが変わる可能性があるのでスナップショットで消す
         var snapshot = enemies.ToArray();
-
         for (int i = 0; i < snapshot.Length; i++)
         {
             var e = snapshot[i];
             if (e == null) continue;
-
-            // 敵が子を持ってるならrootごと消したい場合は transform.root を使う
-            // ここは「spawnされた敵オブジェクト」を消す想定でそのままDestroy
             Destroy(e);
         }
     }

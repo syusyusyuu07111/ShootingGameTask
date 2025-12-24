@@ -43,6 +43,20 @@ public class BGMManager : MonoBehaviour
         fadeRoutine = StartCoroutine(FadeOutAndStop());
     }
 
+    public void StopBgmImmediate()
+    {
+        if (bgmSource == null) return;
+
+        if (fadeRoutine != null)
+            StopCoroutine(fadeRoutine);
+
+        bgmSource.Stop();
+        bgmSource.clip = null;
+        bgmSource.volume = defaultVolume; // éüÇÃçƒê∂Ç…îıÇ¶ÇƒñﬂÇµÇƒÇ®Ç≠
+        bgmSource.pitch = 1f;
+    }
+
+
     void Play(AudioClip clip, bool loop)
     {
         if (bgmSource == null) return;
@@ -57,6 +71,8 @@ public class BGMManager : MonoBehaviour
         if (fadeRoutine != null) StopCoroutine(fadeRoutine);
         fadeRoutine = StartCoroutine(FadeToClip(clip, loop));
     }
+
+
 
     IEnumerator FadeToClip(AudioClip newClip, bool loop)
     {
