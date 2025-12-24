@@ -11,15 +11,48 @@ using UnityEngine;
 public class EnemySpawner : MonoBehaviour
 {
     [Header("Spawn Settings")]
-    public float appearanceTime = 3f;   // 敵を生成する間隔（秒）
-    public GameObject enemyPrefab;       // 生成する敵Prefab
-    public Transform player;             // スポーン位置計算用（プレイヤー基準）
+    public float appearanceTime = 3f;     // 敵を生成する間隔（秒）
+    public GameObject enemyPrefab;        // 生成する敵Prefab
+    public Transform player;              // スポーン位置計算用（プレイヤー基準）
 
     // 現在スポーン中の敵インスタンス一覧
     readonly List<GameObject> spawned = new List<GameObject>();
 
     // スポーン処理用コルーチン
     Coroutine spawnRoutine;
+
+    // ======================
+    // Spawn SE
+    // ======================
+    [Header("Spawn SE")]
+    [Tooltip("未設定ならこのオブジェクトから自動取得（無ければ自動追加）")]
+    public AudioSource seSource;
+
+    [Tooltip("敵が登場した瞬間に鳴らすSE")]
+    public AudioClip LaunchSE;
+
+    [Range(0f, 1f)]
+    public float volume = 1.0f;
+
+    [Header("Limiter")]
+    [Tooltip("この秒数以内の連続再生は無視（多重防止）")]
+    public float minInterval = 0.05f;
+
+    float lastPlayTime = -999f;
+
+    void Start()
+    {
+        // AudioSource 自動取得（無ければ追加）
+        if (seSource == null)
+            seSource = GetComponent<AudioSource>();
+
+        if (seSource == null)
+            seSource = gameObject.AddComponent<AudioSource>();
+
+        seSource.playOnAwake = false;
+        seSource.loop = false;
+        seSource.spatialBlend = 0f; // 2D音（UI/ゲーム共通で聞こえる）
+    }
 
     void Update()
     {
@@ -117,19 +150,39 @@ public class EnemySpawner : MonoBehaviour
             // 管理リストに追加
             spawned.Add(e);
 
+            // ★敵登場SE（生成した瞬間に鳴らす）
+            PlayLaunchSE();
+
             // EnemyController があれば Spawner を所有者として渡す
-            // → Destroy時に Spawner 巻き込みを防ぐ
             var ec = e.GetComponentInChildren<EnemyController>(true);
             if (ec != null)
                 ec.SetOwner(this, e);
             else
-                Debug.LogError(
-                    $"[Spawner] Spawned '{e.name}' has NO EnemyController. Prefabに付けてください。"
-                );
+                Debug.LogError($"[Spawner] Spawned '{e.name}' has NO EnemyController. Prefabに付けてください。");
 
             // 次の生成まで待つ
             yield return new WaitForSeconds(appearanceTime);
         }
+    }
+
+    void PlayLaunchSE()
+    {
+        if (LaunchSE == null) return;
+
+        // 多重再生防止
+        if (Time.time - lastPlayTime < minInterval)
+            return;
+
+        lastPlayTime = Time.time;
+
+        if (seSource == null)
+        {
+            // 念のため（基本Startで確保される）
+            AudioSource.PlayClipAtPoint(LaunchSE, transform.position, volume);
+            return;
+        }
+
+        seSource.PlayOneShot(LaunchSE, volume);
     }
 
     // =========================================================
@@ -189,17 +242,12 @@ public class EnemySpawner : MonoBehaviour
     /// </summary>
     Vector3 GetSpawnPosition(Camera cam)
     {
-        // カメラの表示範囲サイズ
         float h = cam.orthographicSize;
         float w = h * cam.aspect;
 
-        // カメラ中心X
         float cx = cam.transform.position.x;
 
-        // Xは画面内ランダム
         float x = Random.Range(cx - w, cx + w);
-
-        // Yはプレイヤーより上
         float y = player.position.y + Random.Range(0f, h);
 
         return new Vector3(x, y, 0f);

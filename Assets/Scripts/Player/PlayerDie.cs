@@ -48,11 +48,25 @@ public class PlayerDie : MonoBehaviour
     [Tooltip("未設定ならこのオブジェクトから自動取得")]
     public AudioSource seSource;
 
+    [Header("SE Clips")]
+    [Tooltip("タイトル→ゲーム開始の瞬間に鳴らすSE")]
+    public AudioClip startGameOneShot;
+
+    [Range(0f, 1f)]
+    public float startGameOneShotVolume = 1.0f;
+
     [Tooltip("被弾（死亡）した瞬間に鳴らすSE")]
     public AudioClip hitOneShot;
 
     [Range(0f, 1f)]
     public float hitOneShotVolume = 1.0f;
+
+    // （任意）多重防止
+    [Header("SE Limiter (Optional)")]
+    [Tooltip("この秒数以内の連続再生は無視（連打防止）")]
+    public float seMinInterval = 0.03f;
+
+    float lastSePlayTime = -999f;
 
     // ======================
     // Player Damage Visual
@@ -236,6 +250,9 @@ public class PlayerDie : MonoBehaviour
     // ======================
     void StartGame()
     {
+        // ★タイトル→ゲーム開始の瞬間にSE（最優先で鳴らす）
+        PlayStartGameOneShot();
+
         transitioning = true;
         state = State.Playing;
 
@@ -305,11 +322,11 @@ public class PlayerDie : MonoBehaviour
         transitioning = true;
         state = State.GameOver;
 
-        // ★被弾した瞬間に「インゲームBGMを即停止」→SEを最優先で鳴らす
+        // 被弾した瞬間に「インゲームBGMを即停止」→SEを最優先で鳴らす
         if (bgm != null) bgm.StopBgmImmediate();
         PlayHitOneShot();
 
-        // ★その直後から移動・攻撃を停止
+        // その直後から移動・攻撃を停止
         DisablePlayerControls();
 
         if (PausePanel != null) PausePanel.SetActive(false);
@@ -324,9 +341,33 @@ public class PlayerDie : MonoBehaviour
         gameOverRoutine = StartCoroutine(DeathFlow());
     }
 
+    // ======================
+    // SE Play
+    // ======================
+    void PlayStartGameOneShot()
+    {
+        if (startGameOneShot == null) return;
+
+        if (Time.time - lastSePlayTime < seMinInterval)
+            return;
+        lastSePlayTime = Time.time;
+
+        if (seSource == null)
+        {
+            AudioSource.PlayClipAtPoint(startGameOneShot, transform.position, startGameOneShotVolume);
+            return;
+        }
+
+        seSource.PlayOneShot(startGameOneShot, startGameOneShotVolume);
+    }
+
     void PlayHitOneShot()
     {
         if (hitOneShot == null) return;
+
+        if (Time.time - lastSePlayTime < seMinInterval)
+            return;
+        lastSePlayTime = Time.time;
 
         if (seSource == null)
         {

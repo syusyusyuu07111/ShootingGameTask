@@ -20,6 +20,12 @@ public class BulletController : MonoBehaviour
     [Range(0f, 1f)]
     public float volume = 1.0f;
 
+    [Header("Limiter")]
+    [Tooltip("Ç±ÇÃïbêîà»ì‡ÇÃòAë±çƒê∂ÇÕñ≥éãÅiëΩèdñhé~Åj")]
+    public float minInterval = 0.05f;
+
+    float lastPlayTime = -999f;
+
     void Awake()
     {
         input = new InputSystem_Actions();
@@ -44,6 +50,16 @@ public class BulletController : MonoBehaviour
 
         if (input.Player.Attack.IsPressed() && fireTimer >= FireInterval)
         {
+            if (LaunchSE == null) return;
+
+            // ëΩèdçƒê∂ñhé~
+            if (Time.time - lastPlayTime < minInterval)
+                return;
+
+            lastPlayTime = Time.time;
+
+            seSource.PlayOneShot(LaunchSE, volume);
+
             GameObject bullet = pool.GetGameObject(
                 player.position,
                 Quaternion.identity
