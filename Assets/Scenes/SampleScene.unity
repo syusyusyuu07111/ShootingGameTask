@@ -1845,7 +1845,7 @@ AudioSource:
   m_audioClip: {fileID: 0}
   m_Resource: {fileID: 0}
   m_PlayOnAwake: 0
-  m_Volume: 0.3
+  m_Volume: 1
   m_Pitch: 1
   Loop: 0
   Mute: 0
@@ -2293,7 +2293,7 @@ MonoBehaviour:
   gameBgm: {fileID: 8300000, guid: b239e5ce8f2c5be43ad6c419aa9ee2df, type: 3}
   gameOverBgm: {fileID: 8300000, guid: 021c488711f23ed4b8ddfdfd4a1132f7, type: 3}
   fadeTime: 0.4
-  defaultVolume: 0.01
+  defaultVolume: 0.5
 --- !u!1 &2089783639
 GameObject:
   m_ObjectHideFlags: 0
