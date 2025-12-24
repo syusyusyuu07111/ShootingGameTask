@@ -13,6 +13,13 @@ public class BulletController : MonoBehaviour
     [Tooltip("false ‚ÌŠÔ‚ÍUŒ‚“ü—Í‚ğó‚¯•t‚¯‚È‚¢")]
     public bool ControlEnabled = true;
 
+    [Header("Audio")]
+    public AudioSource seSource;
+    public AudioClip LaunchSE;
+
+    [Range(0f, 1f)]
+    public float volume = 1.0f;
+
     void Awake()
     {
         input = new InputSystem_Actions();

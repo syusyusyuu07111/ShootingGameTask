@@ -56,6 +56,19 @@ public class EnemyController : MonoBehaviour
 
     Coroutine deathRoutine;
 
+    // ======================
+    // SE (One Shot)
+    // ======================
+    [Header("SE (One Shot)")]
+    [Tooltip("未設定ならこのオブジェクトから自動取得（子でもOK）")]
+    public AudioSource seSource;
+
+    [Tooltip("被弾（死亡）した瞬間に鳴らすSE")]
+    public AudioClip hitOneShot;
+
+    [Range(0f, 1f)]
+    public float hitOneShotVolume = 1.0f;
+
     public void SetOwner(EnemySpawner spawner, GameObject instance)
     {
         ownerSpawner = spawner;
@@ -77,6 +90,13 @@ public class EnemyController : MonoBehaviour
 
         if (targetRenderer == null)
             Debug.LogError($"[Enemy] SpriteRenderer が見つかりません（4分割できません） name={name}");
+
+        // SE Source 自動取得
+        if (seSource == null)
+            seSource = GetComponentInChildren<AudioSource>(true);
+
+        if (seSource != null)
+            seSource.playOnAwake = false;
     }
 
     void Update()
@@ -110,8 +130,27 @@ public class EnemyController : MonoBehaviour
         if (isDead) return;
         isDead = true;
 
+        //  敵被弾SEはマネージャーに任せる
+        if (EnemyHitSEManager.Instance != null)
+            EnemyHitSEManager.Instance.PlayEnemyHit();
+
         if (deathRoutine != null) StopCoroutine(deathRoutine);
         deathRoutine = StartCoroutine(DeathSequence(diePos));
+    }
+
+
+    void PlayHitOneShot(Vector3 pos)
+    {
+        if (hitOneShot == null) return;
+
+        if (seSource == null)
+        {
+            // AudioSourceが無い場合は一時的に鳴らす
+            AudioSource.PlayClipAtPoint(hitOneShot, pos, hitOneShotVolume);
+            return;
+        }
+
+        seSource.PlayOneShot(hitOneShot, hitOneShotVolume);
     }
 
     IEnumerator DeathSequence(Vector3 diePos)
@@ -148,7 +187,6 @@ public class EnemyController : MonoBehaviour
 
         if (!didSplit)
         {
-            // 失敗したらフォールバック（ゲームが止まらないように）
             if (effectManager != null) effectManager.PlayEffect(diePos);
             KillSelf();
             yield break;
@@ -235,14 +273,13 @@ public class EnemyController : MonoBehaviour
         Texture2D tex = sp.texture;
         if (tex == null) return false;
 
-        // ★Packed/Atlas対応：rect ではなく textureRect を使う
+        // Packed/Atlas対応：rect ではなく textureRect を使う
         Rect tr = sp.textureRect; // テクスチャ上の実領域（px）
 
         float halfW = tr.width * 0.5f;
         float halfH = tr.height * 0.5f;
 
-        // 4分割Rect（px）
-        // BL / BR / TL / TR
+        // 4分割Rect（px） BL / BR / TL / TR
         Rect[] rects =
         {
             new Rect(tr.xMin,          tr.yMin,          halfW, halfH), // BL
@@ -251,13 +288,9 @@ public class EnemyController : MonoBehaviour
             new Rect(tr.xMin + halfW,  tr.yMin + halfH,  halfW, halfH), // TR
         };
 
-        // ピースは中心pivotにして扱いやすく
         Vector2 pivot = new Vector2(0.5f, 0.5f);
-
-        // 元SpriteのPPUに合わせる（サイズが一致する）
         float ppu = sp.pixelsPerUnit;
 
-        // 親を作って、Rendererと同じTransform空間に置く
         root = new GameObject($"{src.gameObject.name}_Pieces");
         root.transform.SetParent(src.transform, false);
         root.transform.localPosition = Vector3.zero;
@@ -267,9 +300,7 @@ public class EnemyController : MonoBehaviour
         pieces = new Transform[4];
         baseLocalPos = new Vector3[4];
 
-        // ★配置は sprite.bounds を使う（見た目のサイズに確実に一致）
-        // boundsは「Unity単位」で取れるので安全
-        Vector3 ext = sp.bounds.extents; // 半分サイズ（Unity単位）
+        Vector3 ext = sp.bounds.extents;
         Vector3[] offsets =
         {
             new Vector3(-ext.x * 0.5f, -ext.y * 0.5f, 0f), // BL
@@ -291,7 +322,6 @@ public class EnemyController : MonoBehaviour
             Sprite pieceSprite;
             try
             {
-                // ★これが「本当にカット」してる部分
                 pieceSprite = Sprite.Create(tex, rects[idx], pivot, ppu, 0, SpriteMeshType.FullRect);
             }
             catch
@@ -312,7 +342,6 @@ public class EnemyController : MonoBehaviour
             sr.sortingLayerID = sortingLayerID;
             sr.sortingOrder = sortingOrder + 1;
 
-            // 見た目を合わせる
             sr.color = src.color;
             sr.sharedMaterial = src.sharedMaterial;
             sr.flipX = src.flipX;
