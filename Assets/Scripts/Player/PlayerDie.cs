@@ -71,7 +71,7 @@ public class PlayerDie : MonoBehaviour
     [Range(0f, 1f)]
     public float pauseEnterOneShotVolume = 1.0f; // ポーズ開始SEの音量
 
-    [Tooltip("ポーズ解除の瞬間に鳴らすSE（未設定でもOK）")]
+    [Tooltip("ポーズ解除の瞬間に鳴らすSE")]
     public AudioClip pauseExitOneShot; // ポーズ解除時SE
 
     [Range(0f, 1f)]
@@ -546,6 +546,7 @@ public class PlayerDie : MonoBehaviour
     {
         if (GameOverImage != null) GameOverImage.enabled = true;
 
+        //waitforsecondsrealtimeは時間停止中でも待てる＞時間停止分待ってほしいからこれ使う
         yield return new WaitForSecondsRealtime(gameOverShowDuration);
 
         if (GameOverImage != null) GameOverImage.enabled = false;

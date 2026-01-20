@@ -11,7 +11,7 @@ using UnityEngine;
 public class EnemySpawner : MonoBehaviour
 {
     [Header("Spawn Settings")]
-    public float appearanceTime = 3f;     // 敵を生成する間隔（秒）
+    public float appearanceTime = 3f;     // 敵を生成する間隔
     public GameObject enemyPrefab;        // 生成する敵Prefab
     public Transform player;              // スポーン位置計算用（プレイヤー基準）
 
@@ -46,16 +46,18 @@ public class EnemySpawner : MonoBehaviour
     /// </summary>
     void Start()
     {
-        // AudioSource 自動取得（無ければ追加）
+        // AudioSource取得
         if (seSource == null)
+        {
             seSource = GetComponent<AudioSource>();
-
+        }
         if (seSource == null)
+        {
             seSource = gameObject.AddComponent<AudioSource>();
+        }
 
         seSource.playOnAwake = false;
         seSource.loop = false;
-        seSource.spatialBlend = 0f; // 2D音（UI/ゲーム共通で聞こえる）
     }
 
     /// <summary>
