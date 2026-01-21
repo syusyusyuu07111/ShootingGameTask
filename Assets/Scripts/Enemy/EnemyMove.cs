@@ -43,6 +43,24 @@ public class EnemyMove : MonoBehaviour
     */
     public Vector2 DiagonalDirection = new Vector2(-1f, -1f);
 
+    /*
+        自身の Transform を保持
+        Update 内で transform を直接触らないためのキャッシュしておく
+    */
+    Transform tr;
+
+    //================
+    // Unity Event
+    //================
+
+    void Awake()
+    {
+        /*
+            Transform を保持しておく
+        */
+        tr = transform;
+    }
+
     void Update()
     {
         /*
@@ -63,6 +81,10 @@ public class EnemyMove : MonoBehaviour
         }
     }
 
+    //================
+    // 移動処理
+    //================
+
     /*
         左方向へ一定速度で移動する
 
@@ -71,13 +93,14 @@ public class EnemyMove : MonoBehaviour
     */
     void MoveLeft()
     {
-        transform.position += Vector3.left * Speed * Time.deltaTime;
+        tr.position += Vector3.left * Speed * Time.deltaTime;
     }
 
     /*
         指定した方向へ斜め移動する
 
-        ・normalized でベクトルを正規化
+        ・Vector2 を Vector3 に変換
+        ・normalized で方向だけを使う
         ・斜め移動でも速度が速くならないようにする
     */
     void MoveDiagonal()
@@ -90,6 +113,6 @@ public class EnemyMove : MonoBehaviour
 
         dir = dir.normalized;
 
-        transform.position += dir * Speed * Time.deltaTime;
+        tr.position += dir * Speed * Time.deltaTime;
     }
 }

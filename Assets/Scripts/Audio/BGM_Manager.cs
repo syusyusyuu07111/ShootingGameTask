@@ -15,10 +15,11 @@ public class BGM_Manager : MonoBehaviour
     public float FadeTime = 0.4f;
     public float DefaultVolume = 1.0f;
 
-    // フェード処理用コルーチン管理
-    // ・同時に複数のフェードが走らないようにする
-    // ・「いまフェード中かどうか」を fadeRoutine が null かどうかで判定できる
-    //   （null = 何も走ってない / nullじゃない = 何かフェード処理が走ってる）
+    /* フェード処理用コルーチン管理
+     ・同時に複数のフェードが走らないようにする
+     ・「いまフェード中かどうか」を fadeRoutine が null かどうかで判定できる
+       （null = 何も走ってない / nullじゃない = 何かフェード処理が走ってる）
+    */
     Coroutine FadeRoutine;
 
     void Awake()
@@ -148,9 +149,10 @@ public class BGM_Manager : MonoBehaviour
         // =====================================================
         // ② 曲の差し替えかえ
         // =====================================================
-        // 音量0で差し替える
+        /* 音量0で差し替える
         // ・差し替え瞬間に前の曲が一瞬聞こえる／プチッとなるのを避ける
-        // ・無音の状態で差し替える＞自然な切り替えにする
+         ・無音の状態で差し替える＞自然な切り替えにする
+        */
         BgmSource.loop = Loop;
         BgmSource.clip = NewClip; // 曲が変わる
         BgmSource.Play();         // 新しい曲の再生開始

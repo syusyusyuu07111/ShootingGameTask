@@ -29,7 +29,7 @@ public class EnemySpawner : MonoBehaviour
     スポーン処理用コルーチン
 
     ・StartCoroutine の戻り値を保存しておくと StopCoroutine できる
-    ・spawnRoutine が null かどうかで「いまスポーン中？」が分かる
+    ・SpawnRoutine が null かどうかで「いまスポーン中？」が分かる
     */
     Coroutine SpawnRoutine;
 
@@ -49,6 +49,18 @@ public class EnemySpawner : MonoBehaviour
 
     float LastPlayTime = -999f;
 
+    /*
+        MainCamera を保持
+        Camera.main を毎回呼ばないため
+    */
+    Camera cam;
+
+    /*
+        cam.transform を保持
+        位置参照を軽くして読みやすくするため
+    */
+    Transform CamTr;
+
     void Start()
     {
         /*
@@ -62,6 +74,16 @@ public class EnemySpawner : MonoBehaviour
 
         SeSource.playOnAwake = false;
         SeSource.loop = false;
+
+        /*
+        Camera取得（保持）
+
+        ・Camera.main はタグ検索なので毎回呼ばない
+        ・未設定はエラー（ルール）
+        */
+        cam = Camera.main;
+        if (cam == null) Debug.LogError("[EnemySpawner] Camera.main が取れません（MainCameraタグ確認）");
+        if (cam != null) CamTr = cam.transform;
 
         /*
         未設定チェック（ルール：未設定はエラーを出す）
@@ -119,11 +141,18 @@ public class EnemySpawner : MonoBehaviour
             return;
         }
 
-        if (Camera.main == null)
+        /*
+        Camera参照チェック（保持した cam を使う）
+
+        ・Start時に取れていない場合もあるので、ここでも拾い直す
+        */
+        if (cam == null) cam = Camera.main;
+        if (cam == null)
         {
             Debug.LogError("[EnemySpawner] Camera.main が取れません（MainCameraタグ確認）");
             return;
         }
+        if (CamTr == null) CamTr = cam.transform;
 
         SpawnRoutine = StartCoroutine(SpawnLoop());
     }
@@ -146,7 +175,7 @@ public class EnemySpawner : MonoBehaviour
         while(true) + WaitForSeconds で「一定間隔で処理」を作る
 
         ・1回スポーン
-        ・appearanceTime秒待つ
+        ・AppearanceTime秒待つ
         ・またスポーン
         を繰り返す
         */
@@ -169,14 +198,22 @@ public class EnemySpawner : MonoBehaviour
                 continue;
             }
 
-            if (Camera.main == null)
+            /*
+            Camera参照の保険
+
+            ・シーン切替などで cam が消える可能性がある
+            ・無ければ拾い直す
+            */
+            if (cam == null) cam = Camera.main;
+            if (cam == null)
             {
                 Debug.LogError("[EnemySpawner] Camera.main が取れません（MainCameraタグ確認）");
                 yield return new WaitForSeconds(1f);
                 continue;
             }
+            if (CamTr == null) CamTr = cam.transform;
 
-            Vector3 Pos = GetSpawnPosition(Camera.main);
+            Vector3 Pos = GetSpawnPosition(cam, CamTr);
 
             GameObject Enemy = Instantiate(EnemyPrefab, Pos, Quaternion.identity);
             if (Enemy == null)
@@ -197,10 +234,7 @@ public class EnemySpawner : MonoBehaviour
               子階層も探す / 非アクティブも対象
             */
             var ec = Enemy.GetComponentInChildren<EnemyController>(true);
-            if (ec == null)
-            {
-                Debug.LogError($"[EnemySpawner] Spawned '{Enemy.name}' に EnemyController がありません。Prefabに付けてください。");
-            }
+            if (ec == null) Debug.LogError($"[EnemySpawner] Spawned '{Enemy.name}' に EnemyController がありません。Prefabに付けてください。");
             if (ec != null) ec.SetOwner(this, Enemy);
 
             yield return new WaitForSeconds(AppearanceTime);
@@ -279,13 +313,26 @@ public class EnemySpawner : MonoBehaviour
         }
     }
 
-    Vector3 GetSpawnPosition(Camera Cam)
+    Vector3 GetSpawnPosition(Camera Cam, Transform CamTransform)
     {
+        /*
+            画面サイズ（正射影）
+            ・orthographicSize = 高さの半分
+            ・aspect を掛けると横幅の半分になる
+        */
         float h = Cam.orthographicSize;
         float w = h * Cam.aspect;
 
-        float cx = Cam.transform.position.x;
+        /*
+            カメラ中心X
+            ・ここを基準に左右にランダム
+        */
+        float cx = CamTransform.position.x;
 
+        /*
+            X：画面内ランダム
+            Y：プレイヤーより上にランダム
+        */
         float x = Random.Range(cx - w, cx + w);
         float y = Player.position.y + Random.Range(0f, h);
 

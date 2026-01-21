@@ -86,7 +86,7 @@ public class EnemyController : MonoBehaviour
     public float HitOneShotVolume = 1.0f;
 
     //================
-    // Runtime
+    // 生成管理
     //================
 
     Animator Anim;
@@ -119,7 +119,7 @@ public class EnemyController : MonoBehaviour
 
     void Start()
     {
-        // Animator を取得する（子階層も含む）
+        // Animator を取得する
         Anim = GetComponentInChildren<Animator>();
 
         /*
