@@ -1,125 +1,158 @@
 using UnityEngine;
 
-/// <summary>
-/// プレイヤーの弾発射を制御するクラス
-/// ・発射間隔管理
-/// ・入力受付
-/// ・弾の生成（PoolManager利用）
-/// ・発射SEの再生
-/// </summary>
+/*
+     プレイヤーの弾発射を制御するクラス
+     ・発射間隔管理
+     ・入力受付
+     ・弾の生成（PoolManager利用）
+     ・発射SEの再生
+*/
 public class BulletController : MonoBehaviour
 {
-    /// <summary>弾のプール管理クラス（弾の生成・再利用を担当）</summary>
-    public PoolManager pool;
+    //================
+    // 参照
+    //================
 
-    /// <summary>プレイヤーのTransform（弾の発射位置を参照）</summary>
-    public Transform player;
+    public PoolManager Pool;
+    public Transform Player;
 
-    /// <summary>弾の発射間隔（秒単位、連射速度の調整用）</summary>
+    //================
+    // 発射設定
+    //================
+
     public float FireInterval = 0.2f;
+    public float FireTimer = 0f;
 
-    /// <summary>発射間隔を計測するタイマー（経過時間を加算）</summary>
-    public float fireTimer = 0f;
+    //================
+    // 入力
+    //================
 
-    /// <summary>入力管理クラス（攻撃入力の検出に使用）</summary>
-    InputSystem_Actions input;
+    InputSystem_Actions Input;
 
     [Header("Control")]
     [Tooltip("false の間は攻撃入力を受け付けない")]
-    /// <summary>操作受付可否（trueで発射可能、falseで無効化）</summary>
     public bool ControlEnabled = true;
 
-    [Header("Audio")]
-    /// <summary>効果音再生用AudioSource（発射SEの再生に使用）</summary>
-    public AudioSource seSource;
+    //================
+    // Audio
+    //================
 
-    /// <summary>発射時の効果音（AudioClipを指定）</summary>
+    [Header("Audio")]
+    public AudioSource SeSource;
     public AudioClip LaunchSE;
 
     [Range(0f, 1f)]
-    /// <summary>効果音の音量（0.0～1.0）</summary>
-    public float volume = 1.0f;
+    public float Volume = 1.0f;
 
     [Header("Limiter")]
     [Tooltip("この秒数以内の連続再生は無視（多重防止）")]
-    /// <summary>効果音の多重再生防止間隔（秒単位、SEの連続再生抑制）</summary>
-    public float minInterval = 0.05f;
+    public float MinInterval = 0.05f;
 
-    /// <summary>最後に効果音を再生した時刻（Time.timeで管理）</summary>
-    float lastPlayTime = -999f;
+    float LastPlayTime = -999f;
 
-    /// <summary>
-    /// 初期化処理。入力管理クラスのインスタンス生成
-    /// </summary>
+    //================
+    // Unity Event
+    //================
+
     void Awake()
     {
-        // 入力管理クラスを初期化
-        input = new InputSystem_Actions();
+        /*
+             InputSystem を生成する
+        */
+        Input = new InputSystem_Actions();
     }
 
-    /// <summary>
-    /// オブジェクト有効化時に入力受付開始
-    /// </summary>
     void OnEnable()
     {
-        // 入力受付を有効化
-        input.Enable();
+        /*
+             入力受付を開始する
+        */
+        Input.Enable();
     }
 
-    /// <summary>
-    /// オブジェクト無効化時に入力受付停止
-    /// </summary>
     void OnDisable()
     {
-        // 入力受付を無効化
-        input.Disable();
+        /*
+             入力受付を停止する
+        */
+        Input.Disable();
     }
 
-    /// <summary>
-    /// 毎フレーム呼ばれる。弾発射処理・タイマー管理・SE再生など
-    /// </summary>
     void Update()
     {
-        // 操作不能中は発射しない（タイマーも回さない）
+        /*
+             操作不能中は発射しない
+             発射間隔タイマーも進めない
+        */
         if (!ControlEnabled) return;
 
-        // 発射間隔タイマーを進める
-        fireTimer += Time.deltaTime;
+        /*
+             参照が未設定ならエラーを出す
+        */
+        if (Pool == null) { Debug.LogError("[BulletController] Pool が未設定です（PoolManager を設定してください）"); return; }
+        if (Player == null) { Debug.LogError("[BulletController] Player が未設定です（Transform を設定してください）"); return; }
+        if (SeSource == null) { Debug.LogError("[BulletController] SeSource が未設定です（AudioSource を設定してください）"); return; }
 
-        // 攻撃入力が押されていて、発射間隔を超えていれば発射
-        if (input.Player.Attack.IsPressed() && fireTimer >= FireInterval)
+        /*
+             発射間隔タイマーを進める
+        */
+        FireTimer += Time.deltaTime;
+
+        /*
+             攻撃入力が押されていて、発射間隔を超えていれば発射する
+        */
+        bool IsAttack = Input.Player.Attack.IsPressed();
+        bool CanFire = FireTimer >= FireInterval;
+
+        if (!IsAttack || !CanFire) return;
+
+        /*
+             発射SEが未設定ならエラーを出す
+        */
+        if (LaunchSE == null)
         {
-            // 発射SEが設定されていなければ何もしない
-            if (LaunchSE == null) return;
-
-            // 効果音の多重再生防止（minInterval未満なら再生しない）
-            if (Time.time - lastPlayTime < minInterval)
-                return;
-
-            // 最終再生時刻を更新
-            lastPlayTime = Time.time;
-
-            // 発射SE再生
-            seSource.PlayOneShot(LaunchSE, volume);
-
-            // プールから弾を取得し、プレイヤー位置に生成
-            GameObject bullet = pool.GetGameObject(
-                player.position,
-                Quaternion.identity
-            );
-
-            // 弾にDestroyerコンポーネントがあれば、プール管理と自動破棄タイマーを設定
-            var destroyer = bullet.GetComponent<Destroyer>();
-            if (destroyer != null)
-            {
-                // プール管理クラスを設定
-                destroyer.PoolManager = pool;
-                // 2秒後に自動で弾を破棄（プールに戻す）
-                destroyer.StartDestroyTimer(2f);
-            }
-
-            // 発射間隔タイマーをリセット
-            fireTimer = 0f;
+            Debug.LogError("[BulletController] LaunchSE が未設定です（AudioClip を設定してください）");
+            return;
         }
+
+        /*
+             効果音の多重再生防止（MinInterval未満なら再生しない）
+        */
+        if (Time.time - LastPlayTime < MinInterval) return;
+
+        LastPlayTime = Time.time;
+
+        /*
+             発射SE再生
+        */
+        SeSource.PlayOneShot(LaunchSE, Volume);
+
+        /*
+             プールから弾を取得して、プレイヤー位置に出す
+        */
+        Vector3 SpawnPos = Player.position;
+        Quaternion SpawnRot = Quaternion.identity;
+
+        GameObject Bullet = Pool.GetGameObject(SpawnPos, SpawnRot);
+        if (Bullet == null)
+        {
+            Debug.LogError("[BulletController] Pool から弾が取得できませんでした（GetGameObject が null を返しました）");
+            return;
+        }
+
+        /*
+             Destroyer が付いているなら、プール返却と自動破棄タイマーを設定する
+        */
+        Destroyer Destroyer = Bullet.GetComponent<Destroyer>();
+        if (Destroyer != null)
+        {
+            Destroyer.PoolManager = Pool;
+            Destroyer.StartDestroyTimer(2f);
+        }
+
+        /*
+             発射間隔タイマーをリセットする
+        */
+        FireTimer = 0f;
     }
 }

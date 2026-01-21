@@ -1,166 +1,195 @@
 using UnityEngine;
 using UnityEngine.Pool;
 
-/// <summary>
-/// GameObject（主に弾）を再利用するためのプール管理クラス
-/// 弾の寿命・移動・登録処理を一元管理
-/// </summary>
+/*
+     GameObject（主に弾）を再利用するためのプール管理クラス
+     ・弾の生成 / 再利用を一元管理する
+     ・弾の寿命（Destroyer）を一元管理する
+     ・弾の移動速度（BulletMove）を一元管理する
+*/
 public class PoolManager : MonoBehaviour
 {
-    [Header("Pool Target")]
+    //================
+    // Pool Target
+    //================
+
     public GameObject Prefab;    // プールする元となるPrefab（弾）
 
-    [Header("Move Settings")]
+    //================
+    // Move Settings
+    //================
+
     public float Speed = 5f;     // 弾の移動速度
 
-    [Header("Life")]
+    //================
+    // Life
+    //================
+
     public float LifeTime = 2f;  // 弾の寿命（秒）
 
-    //ObjectPoolを利用して弾を管理
-    private ObjectPool<GameObject> pool;
+    //================
+    // Pool
+    //================
 
-    /// <summary>
-    /// プールの初期化。ObjectPoolのインスタンスを生成する。
-    /// </summary>
+    ObjectPool<GameObject> Pool;
+
+    //================
+    // Unity Event
+    //================
+
     void Awake()
     {
-        // プール生成
-        pool = new ObjectPool<GameObject>(
-            createFunc: OnCreatePooledObject,         // 新規生成時の処理
-            actionOnGet: OnGetFromPool,               // プールから取得時の処理
-            actionOnRelease: OnReleaseToPool,         // プールに戻す時の処理
-            actionOnDestroy: OnDestroyPooledObject,   // プールから完全に削除する時の処理
-            collectionCheck: false,                   // 重複チェック（falseで高速化）
-            defaultCapacity: 10,                      // 初期生成数
-            maxSize: 100                              // プールの最大保持数
+        /*
+             必須参照チェック
+        */
+        if (Prefab == null) Debug.LogError("[PoolManager] Prefab が未設定です（プールするPrefabを設定してください）");
+
+        /*
+             ObjectPool を生成する
+             ・生成 / 取得 / 返却 / 破棄 の処理を登録する
+        */
+        Pool = new ObjectPool<GameObject>(
+            createFunc: OnCreatePooledObject,
+            actionOnGet: OnGetFromPool,
+            actionOnRelease: OnReleaseToPool,
+            actionOnDestroy: OnDestroyPooledObject,
+            collectionCheck: false,
+            defaultCapacity: 10,
+            maxSize: 100
         );
     }
 
-    // =========================================================
+    //================
     // プール内部処理
-    // =========================================================
+    //================
 
-    /// <summary>
-    /// プールに存在しない場合に新しく生成されるオブジェクト
-    /// 初回のみ呼ばれる
-    /// </summary>
-    /// <returns>新規生成されたGameObject</returns>
     GameObject OnCreatePooledObject()
     {
-        // Prefabから弾を生成し、非アクティブ化
-        var obj = Instantiate(Prefab);
-        obj.SetActive(false);
+        /*
+             Prefab から弾を生成して、非アクティブで保持する
+        */
+        if (Prefab == null) return null;
 
-        // 弾の存在管理（距離判定用）Bulletコンポーネントを付与
-        var bullet = obj.GetComponent<Bullet>();
-        if (bullet == null)
-        {
-            bullet = obj.AddComponent<Bullet>();
-        }
+        GameObject Obj = Instantiate(Prefab);
+        Obj.SetActive(false);
 
-        // 寿命管理用Destroyerコンポーネントを付与
-        var destroyer = obj.GetComponent<Destroyer>();
-        if (destroyer == null)
-        {
-            destroyer = obj.AddComponent<Destroyer>();
-        }
-        // プール返却用にPoolManager参照をセット
-        destroyer.PoolManager = this;
+        /*
+             Bullet：存在管理（距離判定など）用
+        */
+        Bullet Bt = Obj.GetComponent<Bullet>();
+        if (Bt == null) Bt = Obj.AddComponent<Bullet>();
 
-        // 弾の移動処理用BulletMoveコンポーネントを付与
-        var move = obj.GetComponent<BulletMove>();
-        if (move == null)
-        {
-            move = obj.GetComponentInChildren<BulletMove>(true);
-        }
-        if (move == null)
-        {
-            move = obj.AddComponent<BulletMove>();
-        }
-        // 初期速度を設定
-        move.Speed = Speed;
+        /*
+             Destroyer：寿命管理用
+        */
+        Destroyer Ds = Obj.GetComponent<Destroyer>();
+        if (Ds == null) Ds = Obj.AddComponent<Destroyer>();
+        Ds.PoolManager = this;
 
-        return obj;
+        /*
+             BulletMove：移動処理用
+             Prefabの子に付いている可能性もあるので children も探す
+        */
+        BulletMove Bm = GetOrAddBulletMove(Obj);
+        Bm.Speed = Speed;
+
+        return Obj;
     }
 
-    /// <summary>
-    /// プールからオブジェクトを取り出した時に呼ばれる
-    /// 毎回リセットが必要な処理を書く
-    /// </summary>
-    /// <param name="obj">プールから取得したGameObject</param>
-    void OnGetFromPool(GameObject obj)
+    void OnGetFromPool(GameObject Obj)
     {
+        /*
+             取得時に毎回リセットが必要な内容を設定する
+        */
+        if (Obj == null) return;
+
         // オブジェクトを有効化（OnEnableが呼ばれる）
-        obj.SetActive(true);
+        Obj.SetActive(true);
 
-        // 移動設定の再反映
-        var move = obj.GetComponent<BulletMove>();
-        if (move == null)
-        {
-            move = obj.GetComponentInChildren<BulletMove>(true);
-        }
-        if (move == null)
-        {
-            move = obj.AddComponent<BulletMove>();
-        }
-        move.Speed = Speed;
+        /*
+             移動速度を反映する
+        */
+        BulletMove Bm = GetOrAddBulletMove(Obj);
+        Bm.Speed = Speed;
 
-        // Destroyer（寿命管理）再設定
-        var destroyer = obj.GetComponent<Destroyer>();
-        if (destroyer == null)
-        {
-            destroyer = obj.AddComponent<Destroyer>();
-        }
-        destroyer.PoolManager = this;
+        /*
+             Destroyer を設定して寿命タイマーを開始する
+        */
+        Destroyer Ds = Obj.GetComponent<Destroyer>();
+        if (Ds == null) Ds = Obj.AddComponent<Destroyer>();
+        Ds.PoolManager = this;
 
-        // 寿命タイマー開始
-        destroyer.StartDestroyTimer(LifeTime);
+        Ds.StartDestroyTimer(LifeTime);
     }
 
-    /// <summary>
-    /// プールに戻す時に呼ばれる
-    /// </summary>
-    /// <param name="obj">プールに戻すGameObject</param>
-    void OnReleaseToPool(GameObject obj)
+    void OnReleaseToPool(GameObject Obj)
     {
-        // オブジェクトを無効化（OnDisableが呼ばれる）
-        obj.SetActive(false);
+        /*
+             返却時は非アクティブ化する
+        */
+        if (Obj == null) return;
+
+        Obj.SetActive(false);
     }
 
-    /// <summary>
-    /// プール上限超過などで完全破棄される時
-    /// </summary>
-    /// <param name="obj">破棄するGameObject</param>
-    void OnDestroyPooledObject(GameObject obj)
+    void OnDestroyPooledObject(GameObject Obj)
     {
-        // 完全に削除
-        Destroy(obj);
+        /*
+             プール上限超過などで完全破棄される時
+        */
+        if (Obj == null) return;
+
+        Destroy(Obj);
     }
 
-    // =========================================================
-    // 外部から利用するためのAPI
-    // =========================================================
+    //================
+    // コンポーネント取得補助
+    //================
 
-    /// <summary>
-    /// プールからオブジェクトを取得して指定位置・回転で配置する
-    /// </summary>
-    /// <param name="position">配置位置</param>
-    /// <param name="rotation">配置回転</param>
-    /// <returns>取得したGameObject</returns>
-    public GameObject GetGameObject(Vector3 position, Quaternion rotation)
+    BulletMove GetOrAddBulletMove(GameObject Obj)
     {
-        var obj = pool.Get();
-        obj.transform.SetPositionAndRotation(position, rotation);
-        return obj;
+        /*
+             BulletMove を取得する
+             ・同階層に無ければ子階層（非アクティブ含む）も探す
+             ・それでも無ければ追加する
+        */
+        BulletMove Bm = Obj.GetComponent<BulletMove>();
+        if (Bm != null) return Bm;
+
+        Bm = Obj.GetComponentInChildren<BulletMove>(true);
+        if (Bm != null) return Bm;
+
+        return Obj.AddComponent<BulletMove>();
     }
 
-    /// <summary>
-    /// オブジェクトをプールに戻す
-    /// Destroyer から呼びだす
-    /// </summary>
-    /// <param name="obj">プールに戻すGameObject</param>
-    public void ReleaseGameObject(GameObject obj)
+    //================
+    // 外部から利用するAPI
+    //================
+
+    public GameObject GetGameObject(Vector3 Position, Quaternion Rotation)
     {
-        pool.Release(obj);
+        /*
+             プールから取得して指定位置・回転で配置する
+        */
+        if (Pool == null) { Debug.LogError("[PoolManager] Pool が未生成です（Awakeが呼ばれているか確認してください）"); return null; }
+
+        GameObject Obj = Pool.Get();
+        if (Obj == null) { Debug.LogError("[PoolManager] Pool.Get() が null を返しました（Prefab未設定の可能性）"); return null; }
+
+        Transform Tr = Obj.transform;
+        Tr.SetPositionAndRotation(Position, Rotation);
+
+        return Obj;
+    }
+
+    public void ReleaseGameObject(GameObject Obj)
+    {
+        /*
+             Destroyer から呼ばれてプールに戻す
+        */
+        if (Pool == null) { Debug.LogError("[PoolManager] Pool が未生成です（Awakeが呼ばれているか確認してください）"); return; }
+        if (Obj == null) return;
+
+        Pool.Release(Obj);
     }
 }

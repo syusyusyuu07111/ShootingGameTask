@@ -1,132 +1,166 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
+/*
+     プレイヤーの移動を制御するクラス
+     ・入力から移動量を作る
+     ・移動範囲を制限する
+     ・移動中/停止中でアニメを切り替える
+*/
 public class PlayerController : MonoBehaviour
 {
-    [Header("Move Settings")]
-    /// <summary>
-    /// プレイヤーの移動速度
-    /// </summary>
+    //================
+    // Move Settings
+    //================
+
+    // プレイヤーの移動速度
     public float Speed = 5f;
 
-    /// <summary>
-    /// 実際に動かすプレイヤーオブジェクトのTransform
-    /// </summary>
+    // 実際に動かすプレイヤーのTransform
     public Transform Player;
 
-    [Header("Move Limit (X)")]
-    /// <summary>
-    /// プレイヤーが移動できるX座標の左端制限
-    /// </summary>
+    //================
+    // Move Limit (X)
+    //================
+
+    // プレイヤーが移動できるX座標の左端制限
     public float LimitLeft = -8f;
-    /// <summary>
-    /// プレイヤーが移動できるX座標の右端制限
-    /// </summary>
+
+    // プレイヤーが移動できるX座標の右端制限
     public float LimitRight = 8f;
 
-    [Header("Move Limit (Y)")]
-    /// <summary>
-    /// プレイヤーが移動できるY座標の下端制限
-    /// </summary>
+    //================
+    // Move Limit (Y)
+    //================
+
+    // プレイヤーが移動できるY座標の下端制限
     public float LimitDown = -4f;
-    /// <summary>
-    /// プレイヤーが移動できるY座標の上端制限
-    /// </summary>
+
+    // プレイヤーが移動できるY座標の上端制限
     public float LimitUp = 6f;
 
-    /// <summary>
-    /// 入力システムのアクション（移動入力を取得するためのもの）
-    /// </summary>
-    InputSystem_Actions input;
+    //================
+    // Input / Anim
+    //================
 
-    /// <summary>
-    /// プレイヤーのアニメーション制御用
-    /// </summary>
-    Animator anim;
+    InputSystem_Actions Input;
+    Animator Animator;
 
-    /// <summary>
-    /// プレイヤーが現在移動中かどうか
-    /// </summary>
+    //================
+    // State / Control
+    //================
+
+    // プレイヤーが現在移動中かどうか
     public bool IsMoving = false;
 
     [Header("Control")]
     [Tooltip("false の間は移動入力を受け付けない")]
-    /// <summary>
-    /// プレイヤーの操作を有効にするかどうか（falseで操作不能）
-    /// </summary>
     public bool ControlEnabled = true;
 
-    /// <summary>
-    /// インスタンス生成時に入力システムを初期化
-    /// </summary>
-    private void Awake()
+    //================
+    // Unity Event
+    //================
+
+    void Awake()
     {
-        input = new InputSystem_Actions();
+        // 入力システムを生成する
+        Input = new InputSystem_Actions();
     }
 
-    /// <summary>
-    /// オブジェクト有効化時に入力アクションを有効化
-    /// </summary>
-    private void OnEnable()
+    void OnEnable()
     {
-        input.Player.Enable();
+        // Player入力を有効化する
+        Input.Player.Enable();
     }
 
-    /// <summary>
-    /// オブジェクト無効化時に入力アクションを無効化
-    /// </summary>
-    private void OnDisable()
+    void OnDisable()
     {
-        input.Player.Disable();
+        // Player入力を無効化する
+        Input.Player.Disable();
     }
 
-    /// <summary>
-    /// 開始時にAnimatorコンポーネントを取得
-    /// </summary>
-    private void Start()
+    void Start()
     {
-        anim = GetComponent<Animator>();
+        // Animator を取得する
+        Animator = GetComponent<Animator>();
     }
 
-    /// <summary>
-    /// 毎フレーム、プレイヤーの移動処理とアニメーション制御を行う
-    /// </summary>
-    private void Update()
+    void Update()
     {
-        // 操作不能中は完全停止（アニメも止める）
+        /*
+             操作不能中は完全停止する
+             ・移動フラグを落とす
+             ・歩きアニメを止める
+        */
         if (!ControlEnabled)
         {
             IsMoving = false;
-            if (anim != null) anim.SetBool("iswalk", false);
+            SetWalkAnimation(false);
             return;
         }
 
-        // 入力取得（WASD / スティック）
-        Vector2 move = input.Player.Move.ReadValue<Vector2>();
+        /*
+             入力から移動量を取得する
+             ・WASD / スティック
+        */
+        Vector2 Move = Input.Player.Move.ReadValue<Vector2>();
 
-        if (move.sqrMagnitude > 0.01f)
-        {
-            IsMoving = true;
-            if (anim != null)
-                anim.SetBool("iswalk", true);
+        /*
+             入力が無いなら停止扱い
+        */
+        float MoveSq = Move.sqrMagnitude;
+        bool HasMove = MoveSq > 0.01f;
 
-            Vector3 pos = Player.position;
-
-            // X,Y 両方動かす
-            pos.x += move.x * Speed * Time.deltaTime;
-            pos.y += move.y * Speed * Time.deltaTime;
-
-            // 移動制限
-            pos.x = Mathf.Clamp(pos.x, LimitLeft, LimitRight);
-            pos.y = Mathf.Clamp(pos.y, LimitDown, LimitUp);
-
-            Player.position = pos;
-        }
-        else
+        if (!HasMove)
         {
             IsMoving = false;
-            if (anim != null)
-                anim.SetBool("iswalk", false);
+            SetWalkAnimation(false);
+            return;
         }
+
+        /*
+             入力があるなら移動する
+        */
+        if (Player == null)
+        {
+            Debug.LogError("[PlayerController] Player が未設定です（Transform を設定してください）");
+            return;
+        }
+
+        IsMoving = true;
+        SetWalkAnimation(true);
+
+        /*
+             position をいじるので Transform を変数に保持する
+        */
+        Transform Tr = Player;
+
+        Vector3 Pos = Tr.position;
+
+        // X,Y 両方動かす
+        float dt = Time.deltaTime;
+        float MoveX = Move.x * Speed * dt;
+        float MoveY = Move.y * Speed * dt;
+
+        Pos.x += MoveX;
+        Pos.y += MoveY;
+
+        // 移動制限
+        Pos.x = Mathf.Clamp(Pos.x, LimitLeft, LimitRight);
+        Pos.y = Mathf.Clamp(Pos.y, LimitDown, LimitUp);
+
+        Tr.position = Pos;
+    }
+
+    //================
+    // Animation
+    //================
+
+    void SetWalkAnimation(bool IsWalk)
+    {
+        // Animator が無い場合は何もしない
+        if (Animator == null) return;
+
+        // iswalk を更新する
+        Animator.SetBool("iswalk", IsWalk);
     }
 }

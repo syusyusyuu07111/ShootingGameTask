@@ -1,92 +1,95 @@
 using UnityEngine;
 
-/// <summary>
-/// 敵キャラクターの移動挙動を制御するクラス。
-/// 移動タイプ（左方向 or 斜め）を Inspector から切り替え可能。
-///
-/// </summary>
+/*
+    敵キャラクターの移動を制御するクラス
+
+    ・移動タイプによって挙動を切り替える
+    ・Left     ：画面左方向へ水平移動
+    ・Diagonal ：指定した方向へ斜め移動
+
+    【このクラスの役割】
+    ・毎フレーム位置を更新するだけ
+    ・攻撃 / 当たり判定 / 死亡処理は持たない
+*/
 public class EnemyMove : MonoBehaviour
 {
-    /// <summary>
-    /// 移動速度（1秒あたりに進む距離）
-    /// </summary>
+    /*
+        1秒あたりに進む距離
+        値を大きくすると移動が速くなる
+    */
     public float Speed = 5f;
 
-
-    /// </summary>
+    /*
+        敵の移動タイプ定義
+        Inspector から選択できるよう enum にしている
+    */
     public enum MoveType
     {
-        Left,       // 左方向（画面左へ水平移動）
-        Diagonal    // 斜め方向に移動
+        Left,
+        Diagonal
     }
 
-    /// <summary>
-    /// 現在の移動タイプ
-    /// Inspectorから選択できるので、Prefabごとに挙動を変えられる
-    /// </summary>
-    public MoveType moveType = MoveType.Left;
+    /*
+        現在使用している移動タイプ
+        Prefab ごとに設定を変えられる
+    */
+    public MoveType CurrentMoveType = MoveType.Left;
 
+    /*
+        斜め移動時の方向ベクトル
+        例：
+        (-1, -1) → 左下
+        ( 1, -1) → 右下
+    */
+    public Vector2 DiagonalDirection = new Vector2(-1f, -1f);
 
-    public Vector2 diagonalDirection = new Vector2(-1f, -1f);
-
-    /// <summary>
-    /// 現在の moveType に応じて、実際の移動処理を切り替える
-    /// </summary>
     void Update()
     {
+        /*
+            毎フレーム呼ばれる
 
-        switch (moveType)
+            CurrentMoveType に応じて
+            実際の移動処理を切り替える
+        */
+        switch (CurrentMoveType)
         {
             case MoveType.Left:
-                // 左移動用の処理
                 MoveLeft();
                 break;
 
             case MoveType.Diagonal:
-                // 斜め移動用の処理
                 MoveDiagonal();
                 break;
         }
     }
 
-    /// <summary>
-    /// 左方向に一定速度で移動する
-    /// </summary>
+    /*
+        左方向へ一定速度で移動する
+
+        ・Vector3.left = (-1, 0, 0)
+        ・deltaTime を掛けてフレーム差を吸収
+    */
     void MoveLeft()
     {
-        // 【Vector3.left】
-        // ・(-1, 0, 0) を意味する定数
-        // ・X方向のマイナス = 左方向
-        //
-        // 【Time.deltaTime】
-        // ・前フレームからの経過秒数
-        // ・FPSが違っても、1秒あたりの移動量が一定になる
-        //
-        // この1行は：
-        // 「毎フレーム、左へ少しずつ移動する」
         transform.position += Vector3.left * Speed * Time.deltaTime;
     }
 
-    /// <summary>
-    /// diagonalDirectionで指定した方向に、一定速度で斜め移動する
-    /// </summary>
+    /*
+        指定した方向へ斜め移動する
+
+        ・normalized でベクトルを正規化
+        ・斜め移動でも速度が速くならないようにする
+    */
     void MoveDiagonal()
     {
-
         Vector3 dir = new Vector3(
-            diagonalDirection.x,
-            diagonalDirection.y,
+            DiagonalDirection.x,
+            DiagonalDirection.y,
             0f
-        )
+        );
 
+        dir = dir.normalized;
 
-        // 「斜め移動のほうが速い」状態にしないように正規化
-        //
-
-        .normalized;
-
-        // 正規化された方向 × 速度 × deltaTime
-        // → 斜めでも水平でも、体感速度が揃う
         transform.position += dir * Speed * Time.deltaTime;
     }
 }

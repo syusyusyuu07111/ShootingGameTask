@@ -2,325 +2,293 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// 敵を一定時間ごとに生成・管理するクラス
-/// ・スポーン開始 / 停止が可能
-/// ・生成した敵をリストで保持
-/// ・ゲームオーバーやリトライ時の制御に対応
-///
-/// 【このクラスで使っている仕組みメモ
-/// ・List<T> で「生成した敵の参照」を保持する
-/// ・Coroutine + IEnumerator で「時間経過する処理（一定間隔スポーン）」を書く
-/// ・Camera.main / Random.Range で「画面内のランダム位置」を作る
-/// ・Destroyされた参照がListに残る問題を CleanupList() で解決する　敵を消しても参照した情報が破棄されないようにする
-/// </summary>
+/*
+敵を一定時間ごとに生成・管理するクラス
+
+・スポーン開始 / 停止が可能
+・生成した敵をListで保持（後で全削除や参照に使う）
+・Coroutine + IEnumerator で「一定間隔スポーン」を実現
+・Destroyされた参照がListに残る問題を CleanupList() で掃除して防ぐ
+*/
 public class EnemySpawner : MonoBehaviour
 {
     [Header("Spawn Settings")]
-    public float appearanceTime = 3f;     // 敵を生成する間かく
-    public GameObject enemyPrefab;        // 生成する敵Prefab
-    public Transform player;              // スポーン位置計算用（プレイヤー基準でこのくらい離れているところに生成とする）
+    public float AppearanceTime = 3f;        // 敵を生成する間隔
+    public GameObject EnemyPrefab;           // 生成する敵Prefab
+    public Transform Player;                 // スポーン位置計算用（プレイヤー基準）
 
-    // 現在スポーン中の敵インスタンス一覧
-    // 【List<GameObject>】
-    // ・生成した敵の参照を保持しておくためのコレクション
-    // ・後で「全削除」「特定敵の削除」「敵一覧参照」などに使う
+    /*
+    生成した敵インスタンス一覧
 
-    readonly List<GameObject> spawned = new List<GameObject>();
+    ・List<GameObject> に「生成した敵の参照」を保持する
+    ・あとで「全削除」「特定敵の削除」「敵一覧参照」に使う
+    */
+    readonly List<GameObject> Spawned = new List<GameObject>();
 
-    // スポーン処理用コルーチン
-    // ・StartCoroutine の戻り値を保存しておくと StopCoroutine できる
-    // ・「いまスポーン中か？」のフラグとしても使える（nullなら停止中）
-    Coroutine spawnRoutine;
+    /*
+    スポーン処理用コルーチン
 
-    // ======================
-    // Spawn SE
-    // ======================
+    ・StartCoroutine の戻り値を保存しておくと StopCoroutine できる
+    ・spawnRoutine が null かどうかで「いまスポーン中？」が分かる
+    */
+    Coroutine SpawnRoutine;
+
     [Header("Spawn SE")]
     [Tooltip("未設定ならこのオブジェクトから自動取得（無ければ自動追加）")]
-    public AudioSource seSource;
+    public AudioSource SeSource;
 
     [Tooltip("敵が登場した瞬間に鳴らすSE")]
     public AudioClip LaunchSE;
 
     [Range(0f, 1f)]
-    public float volume = 1.0f;
+    public float Volume = 1.0f;
 
     [Header("Limiter")]
     [Tooltip("この秒数以内の連続再生は無視（多重防止）")]
-    public float minInterval = 0.05f;
+    public float MinInterval = 0.05f;
 
-    // 前回SEを鳴らした時間（Time.time）を記録して連打防止に使う
-    float lastPlayTime = -999f;
+    float LastPlayTime = -999f;
 
-    /// <summary>
-    /// 初期化処理
-    /// AudioSourceが未設定の場合は自動で取得または追加し、SE再生用の設定を行う
-    /// </summary>
     void Start()
     {
-        // AudioSource取得
+        /*
+        AudioSource取得
 
-        if (seSource == null)
-        {
-            seSource = GetComponent<AudioSource>();
-        }
-        if (seSource == null)
-        {
-            seSource = gameObject.AddComponent<AudioSource>();
-        }
+        ・Inspector未設定でも動くように GetComponent で拾う
+        ・それでも無ければ AddComponent で作る
+        */
+        if (SeSource == null) SeSource = GetComponent<AudioSource>();
+        if (SeSource == null) SeSource = gameObject.AddComponent<AudioSource>();
 
-        // SE用途なので自動再生やループを無効化
-        seSource.playOnAwake = false;
-        seSource.loop = false;
+        SeSource.playOnAwake = false;
+        SeSource.loop = false;
+
+        /*
+        未設定チェック（ルール：未設定はエラーを出す）
+        */
+        if (EnemyPrefab == null) Debug.LogError("[EnemySpawner] EnemyPrefab が未設定です");
+        if (Player == null) Debug.LogError("[EnemySpawner] Player が未設定です");
+        if (LaunchSE == null) Debug.LogError("[EnemySpawner] LaunchSE が未設定です（SEを鳴らすなら設定してください）");
     }
 
-    /// <summary>
-    /// 毎フレーム呼ばれる
-    /// Destroyされた敵がリストに残らないようにリストをクリーンアップする
-    /// </summary>
     void Update()
     {
-        // Destroyされた敵がリストに残らないよう毎フレーム掃除
-        // 【なぜ必要？】
-        // ・Destroy(e) しても List からは自動で消えない
-        // ・敵が自滅/画面外で消える等、Spawnerを経由せずDestroyされるケースでもListが汚れないようにする
+        /*
+        Destroyされた敵がListに残る問題を掃除する
+
+        ・DestroyしてもListから自動で消えない
+        ・Spawner経由で消さないケース（自滅/画面外/別処理）でも汚れないようにする
+        */
         CleanupList();
     }
 
-    // =========================================================
-    // 外から受け取る用
-    // =========================================================
-
-    /// <summary>
-    /// 現在生成されている敵一覧を取得　　敵を読み取る
-    /// </summary>
+    //======================
+    /// 現在生成されている敵一覧を取得（外から読む用）
+    /// IReadOnlyListで返して「外からAdd/Removeできない」ようにする
+    //======================
     public IReadOnlyList<GameObject> GetSpawnedEnemies()
     {
-        // 【IReadOnlyList】
-        // ・外部から Add/Remove できない形で公開する（改変事故を防ぐ）
-        // ・Spawner以外は「読むだけ」にしたい
-        return spawned;
+        return Spawned;
     }
 
-    /// <summary>
-    /// 敵のスポーンを開始する
-    /// 既にスポーン中の場合は何もしない
-    /// 必要な参照が揃っているかチェックし、問題なければコルーチンでスポーンループを開始する
-    /// </summary>
+    //======================
+    /// スポーン開始
+    /// 既にスポーン中なら何もしない
+    //======================
     public void StartSpawn()
     {
-        // すでに動いていたら二重起動しない
-        // 二重起動すると
-        // ＞SpawnLoopが2本走る→敵が2倍ペースで出るから✖
-        if (spawnRoutine != null) return;
+        /*
+        二重起動防止
 
-        // 参照チェック（落ちる原因を事前に潰す）　参照があるか確認する
+        ・SpawnLoopが2本走ると、敵が2倍ペースで出てしまう
+        */
+        if (SpawnRoutine != null) return;
 
-        if (enemyPrefab == null)
+        /*
+        参照チェック（未設定はエラー）
+        */
+        if (EnemyPrefab == null)
         {
-            Debug.LogError("[Spawner] enemyPrefab が未設定です");
+            Debug.LogError("[EnemySpawner] EnemyPrefab が未設定です");
             return;
         }
 
-        if (player == null)
+        if (Player == null)
         {
-            Debug.LogError("[Spawner] player が未設定です");
+            Debug.LogError("[EnemySpawner] Player が未設定です");
             return;
         }
 
         if (Camera.main == null)
         {
-            Debug.LogError("[Spawner] Camera.main が取れません（MainCameraタグ確認）");
+            Debug.LogError("[EnemySpawner] Camera.main が取れません（MainCameraタグ確認）");
             return;
         }
 
-        // スポーンループ開始
-        spawnRoutine = StartCoroutine(SpawnLoop());
-        Debug.Log("[Spawner] StartSpawn");
+        SpawnRoutine = StartCoroutine(SpawnLoop());
     }
 
-    /// <summary>
-    /// 敵のスポーンを停止する
-    /// スポーン中のコルーチンを停止し、以降敵が生成されなくなる
-    /// </summary>
+    //======================
+    /// スポーン停止
+    /// コルーチンを止めて、以降生成されなくする
+    //======================
     public void StopSpawn()
     {
-        if (spawnRoutine != null)
-        {
-            // 【StopCoroutine】
-            // ・SpawnLoopの実行を止める＝以降スポーンされない
-            StopCoroutine(spawnRoutine);
-            spawnRoutine = null; // nullに戻す＝「停止中」という状態を明確化
-            Debug.Log("[Spawner] StopSpawn");
-        }
+        if (SpawnRoutine == null) return;
+
+        StopCoroutine(SpawnRoutine);
+        SpawnRoutine = null;
     }
 
-    // =========================================================
-    // スポーン処理本体
-    // =========================================================
-
-    /// <summary>
-    /// 敵を一定間隔で生成し続けるコルーチン
-    /// 参照切れやPrefab未設定時は一時停止し、復帰を待つ
-    /// 生成した敵はリストに追加し、SE再生や所有者設定も行う
-    /// </summary>
     IEnumerator SpawnLoop()
     {
-        int loop = 0;
+        /*
+        while(true) + WaitForSeconds で「一定間隔で処理」を作る
 
+        ・1回スポーン
+        ・appearanceTime秒待つ
+        ・またスポーン
+        を繰り返す
+        */
         while (true)
         {
-            loop++;
-
-            if (enemyPrefab == null || player == null || Camera.main == null)
+            /*
+            途中で参照が切れた時の保険（未設定はエラー）
+            */
+            if (EnemyPrefab == null)
             {
-                Debug.LogWarning($"[Spawner] Loop={loop} missing refs. wait...");
-
+                Debug.LogError("[EnemySpawner] EnemyPrefab が未設定です（スポーンできません）");
                 yield return new WaitForSeconds(1f);
                 continue;
             }
 
-            // スポーン位置を計算
-            Vector3 pos = GetSpawnPosition(Camera.main);
+            if (Player == null)
+            {
+                Debug.LogError("[EnemySpawner] Player が未設定です（スポーンできません）");
+                yield return new WaitForSeconds(1f);
+                continue;
+            }
 
-            // 敵生成
-            GameObject e = Instantiate(enemyPrefab, pos, Quaternion.identity);
+            if (Camera.main == null)
+            {
+                Debug.LogError("[EnemySpawner] Camera.main が取れません（MainCameraタグ確認）");
+                yield return new WaitForSeconds(1f);
+                continue;
+            }
 
-            // 管理リストに追加
-            // ・生成した敵を追跡して、後で削除/参照できるようにする
-            spawned.Add(e);
+            Vector3 Pos = GetSpawnPosition(Camera.main);
 
-            // 敵登場SE（生成した瞬間に鳴らす）
+            GameObject Enemy = Instantiate(EnemyPrefab, Pos, Quaternion.identity);
+            if (Enemy == null)
+            {
+                Debug.LogError("[EnemySpawner] Instantiateに失敗しました");
+                yield return new WaitForSeconds(AppearanceTime);
+                continue;
+            }
+
+            Spawned.Add(Enemy);
+
             PlayLaunchSE();
 
-            // EnemyController があれば Spawner を所有者として渡す
-            // 【GetComponentInChildren(true)】
-            // ・子階層も含めて探す
-            // ・true：非アクティブな子も対象にする（Prefab構造が変わっても拾えるよう保険）
-            var ec = e.GetComponentInChildren<EnemyController>(true);
-            if (ec != null)
-                ec.SetOwner(this, e); // Spawner参照を渡して「倒された時にSpawnerへ通知」等ができる
-            else
-                Debug.LogError($"[Spawner] Spawned '{e.name}' has NO EnemyController. Prefabに付けてください。");
+            /*
+            Spawnerを所有者として渡す（EnemyController側がSpawner経由で消せるようになる）
 
-            // 次の生成まで待つ
-            // ・これで一定間隔にする
-            // ・appearanceTime秒待ってからwhileループの先頭に戻り、次を生成する
-            yield return new WaitForSeconds(appearanceTime);
+            ・GetComponentInChildren(true)
+              子階層も探す / 非アクティブも対象
+            */
+            var ec = Enemy.GetComponentInChildren<EnemyController>(true);
+            if (ec == null)
+            {
+                Debug.LogError($"[EnemySpawner] Spawned '{Enemy.name}' に EnemyController がありません。Prefabに付けてください。");
+            }
+            if (ec != null) ec.SetOwner(this, Enemy);
+
+            yield return new WaitForSeconds(AppearanceTime);
         }
     }
 
-    /// <summary>
-    /// 敵登場時のSEを再生する
-    /// 多重再生防止のため、一定間隔未満では再生しない
-    /// AudioSourceが未設定の場合は一時的にPlayClipAtPointで再生
-    /// </summary>
     void PlayLaunchSE()
     {
-        if (LaunchSE == null) return;
-
-        // 多重再生防止
-        // ・前回再生時間との差で「連打かどうか」を判定できる
-        if (Time.time - lastPlayTime < minInterval)
-            return;
-
-        lastPlayTime = Time.time;
-
-        if (seSource == null)
+        /*
+        SE未設定はエラー（ルール）
+        */
+        if (LaunchSE == null)
         {
-            // PlayClipAtPoint
-            // その場で一時AudioSourceを作って鳴らす
-            AudioSource.PlayClipAtPoint(LaunchSE, transform.position, volume);
+            Debug.LogError("[EnemySpawner] LaunchSE が未設定です");
             return;
         }
-        seSource.PlayOneShot(LaunchSE, volume);
+
+        /*
+        多重再生防止
+
+        ・Time.time は timeScale=0 で止まる
+        ・ポーズ中にSEを鳴らしたいなら unscaledTime を使う設計もあり
+        */
+        if (Time.time - LastPlayTime < MinInterval) return;
+
+        LastPlayTime = Time.time;
+
+        if (SeSource == null)
+        {
+            Debug.LogError("[EnemySpawner] SeSource が未設定です（Startで確保できていない）");
+            AudioSource.PlayClipAtPoint(LaunchSE, transform.position, Volume);
+            return;
+        }
+
+        SeSource.PlayOneShot(LaunchSE, Volume);
     }
 
-    // =========================================================
-    // 敵の削除
-    // =========================================================
-
-    /// <summary>
-    /// 指定した敵インスタンスをリストから削除し、Destroyする
-    /// 遅延時間を指定可能
-    /// </summary>
-    public void KillSpawned(GameObject enemyInstance, float delay = 0f)
+    //======================
+    /// 指定した敵を消す（Spawner管理下の削除口）
+    /// ・Listから外す
+    /// ・Destroy（遅延も可）
+    //======================
+    public void KillSpawned(GameObject EnemyInstance, float Delay = 0f)
     {
-        if (enemyInstance == null) return;
+        if (EnemyInstance == null) return;
 
-        // 管理リストから外す
-        // ・DestroyするだけだとListには参照が残るため、先にRemoveしている
-        spawned.Remove(enemyInstance);
+        Spawned.Remove(EnemyInstance);
 
-        // ・delayを指定して一定時間後に削除できる
-        if (delay <= 0f) Destroy(enemyInstance);
-        else Destroy(enemyInstance, delay);
+        if (Delay <= 0f) Destroy(EnemyInstance);
+        if (Delay > 0f) Destroy(EnemyInstance, Delay);
     }
 
-    /// <summary>
-    /// 生成済みの全ての敵を削除し、リストもクリアする
+    //======================
+    /// 生成済みの全ての敵を削除し、Listもクリアする
     /// タイトル戻りやリトライ時に呼び出す
-    /// </summary>
+    //======================
     public void ClearAllSpawned()
     {
-        // 【後ろからfor】
-        // ・要素を削除/Destroyする可能性がある時は、後ろから回すと安全なことが多い
-        for (int i = spawned.Count - 1; i >= 0; i--)
+        for (int i = Spawned.Count - 1; i >= 0; i--)
         {
-            if (spawned[i] != null)
-                Destroy(spawned[i]);
+            if (Spawned[i] == null) continue;
+            Destroy(Spawned[i]);
         }
-        spawned.Clear(); // List自体も空にする＝「今敵はいない」状態を明確化
+        Spawned.Clear();
     }
 
-    /// <summary>
-    /// Destroy済みの敵オブジェクトをリストから除去する
-    /// Updateで毎フレーム呼ばれる
-    /// </summary>
     void CleanupList()
     {
-        // 後ろから消す
-        // ・RemoveAtするとインデックスが詰まるので、前からだと飛ばしが起きる
-        // ・後ろからにして安全に消す
-        for (int i = spawned.Count - 1; i >= 0; i--)
+        /*
+        後ろから消す
+        ・RemoveAtで詰まるので、前から消すと飛ばしが起きる
+        */
+        for (int i = Spawned.Count - 1; i >= 0; i--)
         {
-            if (spawned[i] == null)
-                spawned.RemoveAt(i);
+            if (Spawned[i] == null) Spawned.RemoveAt(i);
         }
     }
 
-    // =========================================================
-    // スポーン位置計算
-    // =========================================================
-
-    /// <summary>
-    /// カメラ範囲内のランダムな位置を計算して返す
-    /// X座標は画面幅内ランダム、Y座標はプレイヤーより上側でランダム
-    /// </summary>
-    Vector3 GetSpawnPosition(Camera cam)
+    Vector3 GetSpawnPosition(Camera Cam)
     {
-        // 【orthographicSize】
-        // ・2D(正投影)カメラの「縦方向の半分のサイズ（ワールド単位）」
-        float h = cam.orthographicSize;
+        float h = Cam.orthographicSize;
+        float w = h * Cam.aspect;
 
-        // 【aspect】
-        // ・画面の横/縦比率
-        // 横幅半分 = 縦半分(h) * aspect
-        float w = h * cam.aspect;
+        float cx = Cam.transform.position.x;
 
-        // カメラ中心Xを基準に左右へランダムに出す
-        float cx = cam.transform.position.x;
-
-        // 【Random.Range】
-        // ・範囲内の乱数を返すUnityの基本
-        // X：画面内のどこか
         float x = Random.Range(cx - w, cx + w);
+        float y = Player.position.y + Random.Range(0f, h);
 
-        // Yプレイヤーより上（上から降ってくる/視界に入ってくる演出）
-        float y = player.position.y + Random.Range(0f, h);
-
-        // z=0で2D平面上に固定
         return new Vector3(x, y, 0f);
     }
 }

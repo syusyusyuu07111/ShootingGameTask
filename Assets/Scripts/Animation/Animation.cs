@@ -1,78 +1,84 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// 連番スプライトによるアニメーションを制御するコンポーネント
-/// </summary>
 public class Animation : MonoBehaviour
 {
-    /// <summary>
-    /// アニメーションに使用するスプライトのリスト（Inspectorで設定）
-    /// </summary>
-    public List<Sprite> frames = new List<Sprite>();
+    /*
+        アニメーションに使用するスプライトのリスト
+        Inspectorで設定する
+    */
+    public List<Sprite> Frames = new List<Sprite>();
 
-    /// <summary>
-    /// 1秒間に何フレーム進めるか（アニメーション速度）
-    /// </summary>
+    /*
+        1秒間に何フレーム進めるか
+        アニメーションの再生速度
+    */
     public float Speed = 12f;
 
-    /// <summary>
-    /// 現在表示中のスプライトのインデックス
-    /// </summary>
-    int frameIndex = 0;
+    /*
+        現在表示中のスプライトのインデックス
+    */
+    int FrameIndex = 0;
 
-    /// <summary>
-    /// 前のフレームからの経過時間
-    /// </summary>
-    float timer = 0f;
+    /*
+        前のフレームからの経過時間
+    */
+    float Timer = 0f;
 
-    /// <summary>
-    /// スプライトを描画するためのSpriteRenderer
-    /// </summary>
+    /*
+        スプライトを描画するためのSpriteRenderer
+    */
     SpriteRenderer sr;
 
-    /// <summary>
-    /// 初期化処理。SpriteRendererを取得する
-    /// </summary>
+    /*
+        初期化処理
+        SpriteRendererを取得する
+    */
     void Awake()
     {
         sr = GetComponent<SpriteRenderer>();
+
+        if (sr == null)
+        {
+            Debug.LogError("SpriteRenderer is not set.");
+            enabled = false;
+        }
+
+        if (Speed <= 0f)
+        {
+            Debug.LogError("Speed must be greater than 0.");
+            enabled = false;
+        }
     }
 
-    /// <summary>
-    /// 毎フレーム呼ばれ、アニメーションの進行を制御する
-    /// </summary>
+    /*
+        毎フレーム呼ばれる
+        アニメーションの進行を制御する
+    */
     void Update()
     {
         // スプライトが設定されていない場合は何もしない
-        if (frames.Count == 0)
-        {
-            return;
-        }
+        if (Frames.Count == 0) return;
 
         // 経過時間を加算
-        timer += Time.deltaTime;
+        Timer += Time.deltaTime;
 
-        // 1フレームあたりの表示時間を計算
-        float frameTime = 1f / Speed;
+        // 1フレームあたりの表示時間
+        float FrameTime = 1f / Speed;
 
-        // 経過時間が1フレーム分を超えた場合、次のスプライトへ
-        if (timer >= frameTime)
-        {
-            // 経過時間から1フレーム分を減算（余剰時間は次フレームに持ち越し）
-            timer -= frameTime;
+        if (Timer < FrameTime) return;
 
-            // 次のスプライトへインデックスを進める
-            frameIndex++;
+        // 経過時間から1フレーム分を減算
+        // 余剰時間は次フレームに持ち越す
+        Timer -= FrameTime;
 
-            // インデックスがリストの範囲外になったら最初に戻す
-            if (frameIndex >= frames.Count)
-            {
-                frameIndex = 0;
-            }
+        // 次のスプライトへインデックスを進める
+        FrameIndex++;
 
-            // 現在のインデックスのスプライトを表示
-            sr.sprite = frames[frameIndex];
-        }
+        // インデックスがリストの範囲外になったら最初に戻す
+        if (FrameIndex >= Frames.Count) FrameIndex = 0;
+
+        // 現在のインデックスのスプライトを表示
+        sr.sprite = Frames[FrameIndex];
     }
 }
