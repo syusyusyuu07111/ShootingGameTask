@@ -13,19 +13,19 @@ public class PoolManager : MonoBehaviour
     // Pool Target
     //================
 
-    public GameObject Prefab;    // プールする元となるPrefab（弾）
+    [SerializeField] private GameObject Prefab;    // プールする元となるPrefab（弾）
 
     //================
     // Move Settings
     //================
 
-    public float Speed = 5f;     // 弾の移動速度
+    [SerializeField] private float Speed = 5f;     // 弾の移動速度
 
     //================
     // Life
     //================
 
-    public float LifeTime = 2f;  // 弾の寿命（秒）
+    [SerializeField] private float LifeTime = 2f;  // 弾の寿命（秒）
 
     //================
     // Pool

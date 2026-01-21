@@ -16,14 +16,14 @@ public class PlayerDie : MonoBehaviour
     // 参照
     //================
 
-    public Transform Player;           // プレイヤーのTransform（座標・見た目・参照の起点）
-    public EnemySpawner Spawner;       // 敵スポナー（敵一覧取得・停止に使う）
+    [SerializeField] private Transform Player;           // プレイヤーのTransform（座標・見た目・参照の起点）
+    [SerializeField] private EnemySpawner Spawner;       // 敵スポナー（敵一覧取得・停止に使う）
 
     //================
     // 死亡判定
     //================
 
-    public float DieDistance = 1.0f;   // プレイヤーと敵の距離がこの値以下で死亡
+    [SerializeField] private float DieDistance = 1.0f;   // プレイヤーと敵の距離がこの値以下で死亡
 
     //================
     // UI
@@ -33,11 +33,11 @@ public class PlayerDie : MonoBehaviour
     public Image TitleImage;           // タイトル画面に表示する画像
 
     [Header("Pause UI")]
-    public GameObject PausePanel;      // ポーズ時に表示するパネル
-    public TMP_Text ResumeText;        // 「再開」テキスト
-    public TMP_Text TitleBackText;     // 「タイトルへ戻る」テキスト
+    [SerializeField] private GameObject PausePanel;      // ポーズ時に表示するパネル
+    [SerializeField] private TMP_Text ResumeText;        // 「再開」テキスト
+    [SerializeField] private TMP_Text TitleBackText;     // 「タイトルへ戻る」テキスト
 
-    public GameObject GameRoot;        // ゲーム本体のルートオブジェクト（ON/OFFでまとめて止める）
+    [SerializeField] private GameObject GameRoot;        // ゲーム本体のルートオブジェクト（ON/OFFでまとめて止める）
 
     //================
     // BEST / SCORE
@@ -45,11 +45,11 @@ public class PlayerDie : MonoBehaviour
 
     [Header("Best Score (Title Only)")]
     [Tooltip("未設定ならシーンから自動取得（Title状態で Show / それ以外で Hide する）")]
-    public BestScoreUI BestScoreUI;
+    [SerializeField] private BestScoreUI BestScoreUI;
 
     [Header("Score (Playing Only)")]
     [Tooltip("未設定ならシーンから自動取得（Playing状態で ShowScore / それ以外で HideScore）")]
-    public ScoreManager ScoreManager;
+    [SerializeField] private ScoreManager ScoreManager;
 
     //================
     // 入力
@@ -87,7 +87,7 @@ public class PlayerDie : MonoBehaviour
 
     [Header("BGM")]
     [Tooltip("未設定ならシーンから自動取得")]
-    public BGM_Manager Bgm;
+    [SerializeField] private BGM_Manager Bgm;
 
     //================
     // SE
@@ -95,36 +95,36 @@ public class PlayerDie : MonoBehaviour
 
     [Header("SE (One Shot)")]
     [Tooltip("未設定ならこのオブジェクトから自動取得")]
-    public AudioSource SeSource;
+    [SerializeField] private AudioSource SeSource;
 
     [Header("SE Clips")]
     [Tooltip("タイトル→ゲーム開始の瞬間に鳴らすSE")]
-    public AudioClip StartGameOneShot;
+    [SerializeField] private AudioClip StartGameOneShot;
 
     [Range(0f, 1f)]
-    public float StartGameOneShotVolume = 1.0f;
+    [SerializeField] private float StartGameOneShotVolume = 1.0f;
 
     [Tooltip("被弾（死亡）した瞬間に鳴らすSE")]
-    public AudioClip HitOneShot;
+    [SerializeField] private AudioClip HitOneShot;
 
     [Range(0f, 1f)]
-    public float HitOneShotVolume = 1.0f;
+    [SerializeField] private float HitOneShotVolume = 1.0f;
 
     [Tooltip("ポーズに入った瞬間に鳴らすSE")]
-    public AudioClip PauseEnterOneShot;
+    [SerializeField] private AudioClip PauseEnterOneShot;
 
     [Range(0f, 1f)]
-    public float PauseEnterOneShotVolume = 1.0f;
+    [SerializeField] private float PauseEnterOneShotVolume = 1.0f;
 
     [Tooltip("ポーズ解除の瞬間のSE")]
-    public AudioClip PauseExitOneShot;
+    [SerializeField] private AudioClip PauseExitOneShot;
 
     [Range(0f, 1f)]
-    public float PauseExitOneShotVolume = 1.0f;
+    [SerializeField] private float PauseExitOneShotVolume = 1.0f;
 
     [Header("SE Limiter (Optional)")]
     [Tooltip("この秒数以内の連続再生は無視（連打防止）")]
-    public float SeMinInterval = 0.03f;
+    [SerializeField] private float SeMinInterval = 0.03f;
 
     float LastSePlayTime = -999f;
 
@@ -134,24 +134,24 @@ public class PlayerDie : MonoBehaviour
 
     [Header("Player Damage Visual")]
     [Tooltip("未設定なら Player から自動取得")]
-    public SpriteRenderer PlayerRenderer;
+    [SerializeField] private SpriteRenderer PlayerRenderer;
 
     [Range(0f, 1f)]
-    public float DamageRedStrength = 0.75f;
+    [SerializeField] private float DamageRedStrength = 0.75f;
 
-    public float DamageHold = 0.05f;
-    public float DamageFadeDuration = 0.5f;
+    [SerializeField] private float DamageHold = 0.05f;
+    [SerializeField] private float DamageFadeDuration = 0.5f;
 
     //================
     // スローモーション演出
     //================
 
     [Header("Slow Motion")]
-    public bool EnableSlowMotion = true;
-    public float SlowMoDurationRealtime = 1.0f;
+    [SerializeField] private bool EnableSlowMotion = true;
+    [SerializeField] private float SlowMoDurationRealtime = 1.0f;
 
     [Range(0.01f, 1f)]
-    public float SlowMoTimeScale = 0.2f;
+    [SerializeField] private float SlowMoTimeScale = 0.2f;
 
     //================
     // プレイヤー操作スクリプト
@@ -159,17 +159,17 @@ public class PlayerDie : MonoBehaviour
 
     [Header("Player Control Scripts")]
     [Tooltip("未設定なら Player から自動取得")]
-    public PlayerController PlayerController;
+    [SerializeField] private PlayerController PlayerController;
 
     [Tooltip("未設定ならシーン/Playerから自動取得（弾発射側）")]
-    public BulletController BulletController;
+    [SerializeField] private BulletController BulletController;
 
     //================
     // GameOver演出
     //================
 
     [Header("Game Over Production")]
-    public float GameOverShowDuration = 3.0f;
+    [SerializeField] private float GameOverShowDuration = 3.0f;
 
     //================
     // プレイヤーリセット
@@ -177,10 +177,10 @@ public class PlayerDie : MonoBehaviour
 
     [Header("Player Reset")]
     [Tooltip("タイトルに戻ったとき、プレイヤー位置をここに戻す。未設定なら Start 時の位置を使う")]
-    public Transform PlayerSpawnPoint;
+    [SerializeField] private Transform PlayerSpawnPoint;
 
     [Tooltip("StartGame 時にもリセットする（安全）")]
-    public bool ResetPositionOnStartGame = true;
+    [SerializeField] private bool ResetPositionOnStartGame = true;
 
     Vector3 InitialPlayerPosition;
     bool HasInitialPlayerPosition = false;
@@ -309,7 +309,6 @@ public class PlayerDie : MonoBehaviour
 
         /*
              sqrMagnitude で距離判定する
-             sqrt を避けて軽量化する
         */
         float DieDistSq = DieDistance * DieDistance;
 

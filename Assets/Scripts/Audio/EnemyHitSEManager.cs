@@ -17,25 +17,25 @@ public class EnemyHitSEManager : MonoBehaviour
     /*
         Œø‰Ê‰¹‚ğÄ¶‚·‚é‚½‚ß‚Ì AudioSource
     */
-    public AudioSource SeSource;
+    [SerializeField] private AudioSource SeSource;
 
     /*
         “G‚ª”í’e‚µ‚½‚ÉÄ¶‚·‚é AudioClip
     */
-    public AudioClip EnemyHitSE;
+    [SerializeField] private AudioClip EnemyHitSE;
 
     [Range(0f, 1f)]
     /*
         Œø‰Ê‰¹‚Ì‰¹—Êi0.0`1.0j
     */
-    public float Volume = 1.0f;
+    [SerializeField] private float Volume = 1.0f;
 
     [Header("Limiter")]
     [Tooltip("‚±‚Ì•b”ˆÈ“à‚Ì˜A‘±Ä¶‚Í–³‹i‘½d–h~j")]
     /*
         Œø‰Ê‰¹‚Ì˜A‘±Ä¶‚ğ–h‚®‚½‚ß‚ÌÅ¬ŠÔŠui•bj
     */
-    public float MinInterval = 0.05f;
+    [SerializeField] private float MinInterval = 0.05f;
 
     /*
         ÅŒã‚ÉŒø‰Ê‰¹‚ğÄ¶‚µ‚½iTime.timej

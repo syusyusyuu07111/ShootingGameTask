@@ -13,15 +13,15 @@ public class BulletController : MonoBehaviour
     // 参照
     //================
 
-    public PoolManager Pool;
-    public Transform Player;
+    [SerializeField] private PoolManager Pool;
+    [SerializeField] private Transform Player;
 
     //================
     // 発射設定
     //================
 
-    public float FireInterval = 0.2f;
-    public float FireTimer = 0f;
+    [SerializeField] private float FireInterval = 0.2f;
+    private float FireTimer = 0f;
 
     //================
     // 入力
@@ -38,17 +38,17 @@ public class BulletController : MonoBehaviour
     //================
 
     [Header("Audio")]
-    public AudioSource SeSource;
-    public AudioClip LaunchSE;
+    [SerializeField] private AudioSource SeSource;
+    [SerializeField] private AudioClip LaunchSE;
 
     [Range(0f, 1f)]
-    public float Volume = 1.0f;
+    [SerializeField] private float Volume = 1.0f;
 
     [Header("Limiter")]
     [Tooltip("この秒数以内の連続再生は無視（多重防止）")]
-    public float MinInterval = 0.05f;
+    [SerializeField] private float MinInterval = 0.05f;
 
-    float LastPlayTime = -999f;
+    private float LastPlayTime = -999f;
 
     //================
     // Unity Event

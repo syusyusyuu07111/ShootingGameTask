@@ -12,13 +12,13 @@ using UnityEngine;
 public class BackgroundScroll : MonoBehaviour
 {
     [Header("Scroll Settings")]
-    public float ScrollSpeed = 3.0f;
+    [SerializeField] private float ScrollSpeed = 3.0f;
 
     [Tooltip("このX座標を超えたらループ")]
-    public float ResetBorderX = -4935f;
+    [SerializeField] private float ResetBorderX = -4935f;
 
     [Tooltip("ループ後に戻すX座標")]
-    public float ResetX = 23f;
+    [SerializeField] private float ResetX = 23f;
 
     Transform CachedTransform;
 

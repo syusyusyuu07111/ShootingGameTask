@@ -13,30 +13,30 @@ public class PlayerController : MonoBehaviour
     //================
 
     // プレイヤーの移動速度
-    public float Speed = 5f;
+    [SerializeField] private float Speed = 5f;
 
     // 実際に動かすプレイヤーのTransform
-    public Transform Player;
+    [SerializeField] private Transform Player;
 
     //================
     // Move Limit (X)
     //================
 
     // プレイヤーが移動できるX座標の左端制限
-    public float LimitLeft = -8f;
+    [SerializeField] private float LimitLeft = -8f;
 
     // プレイヤーが移動できるX座標の右端制限
-    public float LimitRight = 8f;
+    [SerializeField] private float LimitRight = 8f;
 
     //================
     // Move Limit (Y)
     //================
 
     // プレイヤーが移動できるY座標の下端制限
-    public float LimitDown = -4f;
+    [SerializeField] private float LimitDown = -4f;
 
     // プレイヤーが移動できるY座標の上端制限
-    public float LimitUp = 6f;
+    [SerializeField] private float LimitUp = 6f;
 
     //================
     // Input / Anim
@@ -50,7 +50,7 @@ public class PlayerController : MonoBehaviour
     //================
 
     // プレイヤーが現在移動中かどうか
-    public bool IsMoving = false;
+    [SerializeField] private bool IsMoving = false;
 
     [Header("Control")]
     [Tooltip("false の間は移動入力を受け付けない")]

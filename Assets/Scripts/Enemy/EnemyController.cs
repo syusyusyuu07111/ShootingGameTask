@@ -17,73 +17,73 @@ public class EnemyController : MonoBehaviour
     // 当たり判定
     //================
 
-    public float HitRadius = 0.5f;
+    [SerializeField] private float HitRadius = 0.5f;
 
     [Tooltip("当たり判定の中心（未設定ならEnemy位置）")]
-    public Transform HitCenter;
+    [SerializeField] private Transform HitCenter;
 
     //================
     // Death
     //================
 
     [Tooltip("消えるまでの遅延時間（死亡アニメ用）")]
-    public float DestroyDelay = 0f;
+    [SerializeField] private float DestroyDelay = 0f;
 
     //================
     // Effect
     //================
 
     [Tooltip("未設定ならシーンから自動取得（無ければエラー）")]
-    public EffectManager EffectManager;
+    [SerializeField] private EffectManager EffectManager;
 
     //================
     // Score
     //================
 
     [Tooltip("未設定ならシーンから自動取得（無ければエラー）")]
-    public ScoreManager ScoreManager;
+    [SerializeField] private ScoreManager ScoreManager;
 
     //================
     // Animator
     //================
 
     [Tooltip("死亡アニメBoolパラメータ名（Animator側に無いなら空でもOK）")]
-    public string DeathBoolParam = "IsDeath";
+    [SerializeField] private string DeathBoolParam = "IsDeath";
 
     //================
     //敵死亡時演出
     //================
 
     [Tooltip("見た目のSpriteRenderer（未設定なら子から自動取得）")]
-    public SpriteRenderer TargetRenderer;
+    [SerializeField] private SpriteRenderer TargetRenderer;
 
     [Tooltip("パーンで飛ぶ距離（Unity単位）")]
-    public float BurstDistance = 0.9f;
+    [SerializeField] private float BurstDistance = 0.9f;
 
     [Tooltip("パーン時間（短いほど気持ちいい）")]
-    public float BurstTime = 0.18f;
+    [SerializeField] private float BurstTime = 0.18f;
 
     [Tooltip("回転量（度）")]
-    public float BurstRotate = 240f;
+    [SerializeField] private float BurstRotate = 240f;
 
     [Tooltip("パーン完了後、エフェクトまでの待ち")]
-    public float AfterBurstWait = 0.05f;
+    [SerializeField] private float AfterBurstWait = 0.05f;
 
     [Tooltip("破片を残す時間")]
-    public float PiecesLife = 0.25f;
+    [SerializeField] private float PiecesLife = 0.25f;
 
     //================
     // SE (One Shot)
     //================
 
     [Tooltip("未設定なら子から自動取得（無ければ未使用）")]
-    public AudioSource SeSource;
+    [SerializeField] private AudioSource SeSource;
 
     [Tooltip("被弾（死亡）した瞬間に鳴らすSE（未使用でもOK）")]
-    public AudioClip HitOneShot;
+    [SerializeField] private AudioClip HitOneShot;
 
     [Range(0f, 1f)]
-    public float HitOneShotVolume = 1.0f;
+    [SerializeField] private float HitOneShotVolume = 1.0f;
 
     //================
     // 生成管理
@@ -565,11 +565,13 @@ public class EnemyController : MonoBehaviour
             }
 
             GameObject Go = new GameObject($"Piece_{i}");
+            //transformをここでていぎしておけば下のtransformを定義しないで済む
             Go.transform.SetParent(Root.transform, false);
             Go.transform.localPosition = Offsets[Idx];
             Go.transform.localRotation = Quaternion.identity;
             Go.transform.localScale = Vector3.one;
 
+            //srを三回定義しているから無駄な処理が走っている
             SpriteRenderer sr = Go.AddComponent<SpriteRenderer>();
             sr.sprite = PieceSprite;
             sr.sortingLayerID = SortingLayerId;

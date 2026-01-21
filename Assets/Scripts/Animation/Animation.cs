@@ -1,38 +1,38 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using UnityEngine;
 
 public class Animation : MonoBehaviour
 {
     /*
-        ƒAƒjƒ[ƒVƒ‡ƒ“‚Ég—p‚·‚éƒXƒvƒ‰ƒCƒg‚ÌƒŠƒXƒg
-        Inspector‚Åİ’è‚·‚é
+        ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ã«ä½¿ç”¨ã™ã‚‹ã‚¹ãƒ—ãƒ©ã‚¤ãƒˆã®ãƒªã‚¹ãƒˆ
+        Inspectorã§è¨­å®šã™ã‚‹
     */
-    public List<Sprite> Frames = new List<Sprite>();
+    [SerializeField] private List<Sprite> Frames = new List<Sprite>();
 
     /*
-        1•bŠÔ‚É‰½ƒtƒŒ[ƒ€i‚ß‚é‚©
-        ƒAƒjƒ[ƒVƒ‡ƒ“‚ÌÄ¶‘¬“x
+        1ç§’é–“ã«ä½•ãƒ•ãƒ¬ãƒ¼ãƒ é€²ã‚ã‚‹ã‹
+        ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ã®å†ç”Ÿé€Ÿåº¦
     */
-    public float Speed = 12f;
+    [SerializeField] private float Speed = 12f;
 
     /*
-        Œ»İ•\¦’†‚ÌƒXƒvƒ‰ƒCƒg‚ÌƒCƒ“ƒfƒbƒNƒX
+        ç¾åœ¨è¡¨ç¤ºä¸­ã®ã‚¹ãƒ—ãƒ©ã‚¤ãƒˆã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹
     */
     int FrameIndex = 0;
 
     /*
-        ‘O‚ÌƒtƒŒ[ƒ€‚©‚ç‚ÌŒo‰ßŠÔ
+        å‰ã®ãƒ•ãƒ¬ãƒ¼ãƒ ã‹ã‚‰ã®çµŒéæ™‚é–“
     */
     float Timer = 0f;
 
     /*
-        ƒXƒvƒ‰ƒCƒg‚ğ•`‰æ‚·‚é‚½‚ß‚ÌSpriteRenderer
+        ã‚¹ãƒ—ãƒ©ã‚¤ãƒˆã‚’æç”»ã™ã‚‹ãŸã‚ã®SpriteRenderer
     */
     SpriteRenderer sr;
 
     /*
-        ‰Šú‰»ˆ—
-        SpriteRenderer‚ğæ“¾‚·‚é
+        åˆæœŸåŒ–å‡¦ç†
+        SpriteRendererã‚’å–å¾—ã™ã‚‹
     */
     void Awake()
     {
@@ -40,45 +40,45 @@ public class Animation : MonoBehaviour
 
         if (sr == null)
         {
-            Debug.LogError("SpriteRenderer is not set.");
+            Debug.LogError("SpriteRenderer ãŒè¨­å®šã•ã‚Œã¦ã„ã¾ã›ã‚“ã€‚");
             enabled = false;
         }
 
         if (Speed <= 0f)
         {
-            Debug.LogError("Speed must be greater than 0.");
+            Debug.LogError("é€Ÿåº¦ã¯0ã‚ˆã‚Šå¤§ãããªã„ã¨âœ–");
             enabled = false;
         }
     }
 
     /*
-        –ˆƒtƒŒ[ƒ€ŒÄ‚Î‚ê‚é
-        ƒAƒjƒ[ƒVƒ‡ƒ“‚Ìis‚ğ§Œä‚·‚é
+        æ¯ãƒ•ãƒ¬ãƒ¼ãƒ å‘¼ã°ã‚Œã‚‹
+        ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ã®é€²è¡Œã‚’åˆ¶å¾¡ã™ã‚‹
     */
     void Update()
     {
-        // ƒXƒvƒ‰ƒCƒg‚ªİ’è‚³‚ê‚Ä‚¢‚È‚¢ê‡‚Í‰½‚à‚µ‚È‚¢
+        // ã‚¹ãƒ—ãƒ©ã‚¤ãƒˆãŒè¨­å®šã•ã‚Œã¦ã„ãªã„å ´åˆã¯ä½•ã‚‚ã—ãªã„
         if (Frames.Count == 0) return;
 
-        // Œo‰ßŠÔ‚ğ‰ÁZ
+        // çµŒéæ™‚é–“ã‚’åŠ ç®—
         Timer += Time.deltaTime;
 
-        // 1ƒtƒŒ[ƒ€‚ ‚½‚è‚Ì•\¦ŠÔ
+        // 1ãƒ•ãƒ¬ãƒ¼ãƒ ã‚ãŸã‚Šã®è¡¨ç¤ºæ™‚é–“
         float FrameTime = 1f / Speed;
 
         if (Timer < FrameTime) return;
 
-        // Œo‰ßŠÔ‚©‚ç1ƒtƒŒ[ƒ€•ª‚ğŒ¸Z
-        // —]èŠÔ‚ÍŸƒtƒŒ[ƒ€‚É‚¿‰z‚·
+        // çµŒéæ™‚é–“ã‹ã‚‰1ãƒ•ãƒ¬ãƒ¼ãƒ åˆ†ã‚’æ¸›ç®—
+        // ä½™å‰°æ™‚é–“ã¯æ¬¡ãƒ•ãƒ¬ãƒ¼ãƒ ã«æŒã¡è¶Šã™
         Timer -= FrameTime;
 
-        // Ÿ‚ÌƒXƒvƒ‰ƒCƒg‚ÖƒCƒ“ƒfƒbƒNƒX‚ği‚ß‚é
+        // æ¬¡ã®ã‚¹ãƒ—ãƒ©ã‚¤ãƒˆã¸ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã‚’é€²ã‚ã‚‹
         FrameIndex++;
 
-        // ƒCƒ“ƒfƒbƒNƒX‚ªƒŠƒXƒg‚Ì”ÍˆÍŠO‚É‚È‚Á‚½‚çÅ‰‚É–ß‚·
+        // ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ãŒãƒªã‚¹ãƒˆã®ç¯„å›²å¤–ã«ãªã£ãŸã‚‰æœ€åˆã«æˆ»ã™
         if (FrameIndex >= Frames.Count) FrameIndex = 0;
 
-        // Œ»İ‚ÌƒCƒ“ƒfƒbƒNƒX‚ÌƒXƒvƒ‰ƒCƒg‚ğ•\¦
+        // ç¾åœ¨ã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã®ã‚¹ãƒ—ãƒ©ã‚¤ãƒˆã‚’è¡¨ç¤º
         sr.sprite = Frames[FrameIndex];
     }
 }

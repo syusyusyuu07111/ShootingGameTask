@@ -560,9 +560,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 85a9fe9dba78dbe41808f242efd9ba56, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BackgroundScroll
-  scrollSpeed: 3
-  resetBorderX: -4935
-  resetX: 23
+  ScrollSpeed: 3
+  ResetBorderX: -4935
+  ResetX: 23
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
@@ -1190,15 +1190,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70ce5c6b7021fae48ae38f6ae0aaf213, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BulletController
-  pool: {fileID: 1762866822}
-  player: {fileID: 512384776}
+  Pool: {fileID: 1762866822}
+  Player: {fileID: 512384776}
   FireInterval: 0.2
-  fireTimer: 0
   ControlEnabled: 1
-  seSource: {fileID: 553546350}
+  SeSource: {fileID: 553546350}
   LaunchSE: {fileID: 8300000, guid: 814619cacda116e4cbe0deb468ca82ea, type: 3}
-  volume: 1
-  minInterval: 0.05
+  Volume: 1
+  MinInterval: 0.05
 --- !u!114 &512384779
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1211,13 +1210,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 82ede6dd88f81624ab5e2000748a8379, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Animation
-  frames:
-  - {fileID: 209150208, guid: 422c2bfcd25e2b045848c518111c16b1, type: 3}
-  - {fileID: 623347818, guid: 422c2bfcd25e2b045848c518111c16b1, type: 3}
-  - {fileID: -331636488, guid: 422c2bfcd25e2b045848c518111c16b1, type: 3}
-  - {fileID: 1035476820, guid: 422c2bfcd25e2b045848c518111c16b1, type: 3}
-  - {fileID: -818121920, guid: 422c2bfcd25e2b045848c518111c16b1, type: 3}
-  - {fileID: -170588532, guid: 422c2bfcd25e2b045848c518111c16b1, type: 3}
+  Frames: []
   Speed: 12
 --- !u!1 &553546349
 GameObject:
@@ -1763,7 +1756,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &909989583
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1852,13 +1845,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 310e5e47bd430664a80629958a950cb6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemySpawner
-  appearanceTime: 3
-  enemyPrefab: {fileID: 8068589428734277748, guid: 27bf31f6833d5b742a6b7841e983dd6b, type: 3}
-  player: {fileID: 512384776}
-  seSource: {fileID: 553546350}
+  AppearanceTime: 3
+  EnemyPrefab: {fileID: 1762866816}
+  Player: {fileID: 512384776}
+  SeSource: {fileID: 553546350}
   LaunchSE: {fileID: 8300000, guid: 877af0ff4fdd7e74ab457a051b6d98ad, type: 3}
-  volume: 1
-  minInterval: 0.05
+  Volume: 1
+  MinInterval: 0.05
 --- !u!4 &929170431
 Transform:
   m_ObjectHideFlags: 0
@@ -2647,10 +2640,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04bfaacbc9321b343950d9cfb14d55b6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyHitSEManager
-  seSource: {fileID: 553546350}
-  enemyHitSE: {fileID: 8300000, guid: f79664f54d742754995b5cf47645e313, type: 3}
-  volume: 1
-  minInterval: 0.05
+  SeSource: {fileID: 553546350}
+  EnemyHitSE: {fileID: 8300000, guid: 8e3b6acf388299143ad75a7021590e38, type: 3}
+  Volume: 1
+  MinInterval: 0.05
 --- !u!1 &1904943185
 GameObject:
   m_ObjectHideFlags: 0
@@ -2858,40 +2851,40 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e4e78624a021cdd4daaf2c6237fd896b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerDie
-  player: {fileID: 512384776}
-  spawner: {fileID: 929170430}
-  dieDistance: 1
+  Player: {fileID: 512384776}
+  Spawner: {fileID: 929170430}
+  DieDistance: 1
   GameOverImage: {fileID: 849904082}
   TitleImage: {fileID: 2004575700}
   PausePanel: {fileID: 909989582}
   ResumeText: {fileID: 573632415}
   TitleBackText: {fileID: 1517206084}
-  gameRoot: {fileID: 1477441912}
-  bestScoreUI: {fileID: 0}
-  scoreManager: {fileID: 0}
-  bgm: {fileID: 2057628800}
-  seSource: {fileID: 553546350}
-  startGameOneShot: {fileID: 8300000, guid: b3fe944af517d56489f3ed2ccaf5f268, type: 3}
-  startGameOneShotVolume: 1
-  hitOneShot: {fileID: 8300000, guid: 436d3b3fcaf719d46b6a7802abf51ff2, type: 3}
-  hitOneShotVolume: 1
-  pauseEnterOneShot: {fileID: 8300000, guid: 3af1a00de21498c4991ceef4985ca01a, type: 3}
-  pauseEnterOneShotVolume: 1
-  pauseExitOneShot: {fileID: 8300000, guid: 3af1a00de21498c4991ceef4985ca01a, type: 3}
-  pauseExitOneShotVolume: 1
-  seMinInterval: 0.03
-  playerRenderer: {fileID: 512384775}
-  damageRedStrength: 0.75
-  damageHold: 0.05
-  damageFadeDuration: 0.5
-  enableSlowMotion: 1
-  slowMoDurationRealtime: 1
-  slowMoTimeScale: 0.2
-  playerController: {fileID: 512384777}
-  bulletController: {fileID: 512384778}
-  gameOverShowDuration: 3.5
-  playerSpawnPoint: {fileID: 0}
-  resetPositionOnStartGame: 1
+  GameRoot: {fileID: 1477441912}
+  BestScoreUI: {fileID: 87589186}
+  ScoreManager: {fileID: 87589184}
+  Bgm: {fileID: 2057628800}
+  SeSource: {fileID: 553546350}
+  StartGameOneShot: {fileID: 8300000, guid: b3fe944af517d56489f3ed2ccaf5f268, type: 3}
+  StartGameOneShotVolume: 1
+  HitOneShot: {fileID: 8300000, guid: 814619cacda116e4cbe0deb468ca82ea, type: 3}
+  HitOneShotVolume: 1
+  PauseEnterOneShot: {fileID: 8300000, guid: 061d21b00aa29b942be8ff2063c87689, type: 3}
+  PauseEnterOneShotVolume: 1
+  PauseExitOneShot: {fileID: 8300000, guid: f79664f54d742754995b5cf47645e313, type: 3}
+  PauseExitOneShotVolume: 1
+  SeMinInterval: 0.03
+  PlayerRenderer: {fileID: 512384775}
+  DamageRedStrength: 0.75
+  DamageHold: 0.05
+  DamageFadeDuration: 0.5
+  EnableSlowMotion: 1
+  SlowMoDurationRealtime: 1
+  SlowMoTimeScale: 0.2
+  PlayerController: {fileID: 512384777}
+  BulletController: {fileID: 512384778}
+  GameOverShowDuration: 3
+  PlayerSpawnPoint: {fileID: 512384776}
+  ResetPositionOnStartGame: 1
 --- !u!4 &2057628799
 Transform:
   m_ObjectHideFlags: 0
@@ -2919,12 +2912,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 80ffd26a18d3f864c8998946d448fd2b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BGMManager
-  bgmSource: {fileID: 1707575379}
-  titleBgm: {fileID: 8300000, guid: 36538eabcdab8c647ada95b028e0c6be, type: 3}
-  gameBgm: {fileID: 8300000, guid: b239e5ce8f2c5be43ad6c419aa9ee2df, type: 3}
-  gameOverBgm: {fileID: 8300000, guid: 021c488711f23ed4b8ddfdfd4a1132f7, type: 3}
-  fadeTime: 0.4
-  defaultVolume: 0.5
+  BgmSource: {fileID: 1707575379}
+  TitleBgm: {fileID: 8300000, guid: 36538eabcdab8c647ada95b028e0c6be, type: 3}
+  GameBgm: {fileID: 8300000, guid: 3af1a00de21498c4991ceef4985ca01a, type: 3}
+  GameOverBgm: {fileID: 8300000, guid: 021c488711f23ed4b8ddfdfd4a1132f7, type: 3}
+  FadeTime: 0.4
+  DefaultVolume: 1
 --- !u!1 &2089783639
 GameObject:
   m_ObjectHideFlags: 0

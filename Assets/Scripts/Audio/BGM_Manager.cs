@@ -4,16 +4,16 @@ using System.Collections;
 public class BGM_Manager : MonoBehaviour
 {
     [Header("Audio Source (BGM）")]
-    public AudioSource BgmSource;
+    [SerializeField] private AudioSource BgmSource;
 
     [Header("Clips")]
-    public AudioClip TitleBgm;
-    public AudioClip GameBgm;
-    public AudioClip GameOverBgm;
+    [SerializeField] private AudioClip TitleBgm;
+    [SerializeField] private AudioClip GameBgm;
+    [SerializeField] private AudioClip GameOverBgm;
 
     [Header("Fade")]
-    public float FadeTime = 0.4f;
-    public float DefaultVolume = 1.0f;
+    [SerializeField] private float FadeTime = 0.4f;
+    [SerializeField] private float DefaultVolume = 1.0f;
 
     /* フェード処理用コルーチン管理
      ・同時に複数のフェードが走らないようにする

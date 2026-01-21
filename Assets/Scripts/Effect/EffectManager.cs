@@ -10,10 +10,10 @@ public class EffectManager : MonoBehaviour
     [Header("Effect Settings")]
 
     [Tooltip("生成するエフェクトPrefab")]
-    public GameObject Eff;
+    [SerializeField] private GameObject Eff;
 
     [Tooltip("エフェクトを消すまでの時間（秒）")]
-    public float EffTime = 2f;
+    [SerializeField] private float EffTime = 2f;
 
     /*
         指定した座標にエフェクトを生成する

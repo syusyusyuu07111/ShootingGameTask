@@ -17,7 +17,7 @@ public class EnemyMove : MonoBehaviour
         1秒あたりに進む距離
         値を大きくすると移動が速くなる
     */
-    public float Speed = 5f;
+    [SerializeField] private float Speed = 5f;
 
     /*
         敵の移動タイプ定義
@@ -33,7 +33,7 @@ public class EnemyMove : MonoBehaviour
         現在使用している移動タイプ
         Prefab ごとに設定を変えられる
     */
-    public MoveType CurrentMoveType = MoveType.Left;
+    [SerializeField] private MoveType CurrentMoveType = MoveType.Left;
 
     /*
         斜め移動時の方向ベクトル
@@ -41,7 +41,7 @@ public class EnemyMove : MonoBehaviour
         (-1, -1) → 左下
         ( 1, -1) → 右下
     */
-    public Vector2 DiagonalDirection = new Vector2(-1f, -1f);
+    [SerializeField] private Vector2 DiagonalDirection = new Vector2(-1f, -1f);
 
     /*
         自身の Transform を保持
