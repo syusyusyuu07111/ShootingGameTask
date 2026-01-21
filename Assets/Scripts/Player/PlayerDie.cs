@@ -116,7 +116,7 @@ public class PlayerDie : MonoBehaviour
     [Range(0f, 1f)]
     public float PauseEnterOneShotVolume = 1.0f;
 
-    [Tooltip("ポーズ解除の瞬間に鳴らすSE")]
+    [Tooltip("ポーズ解除の瞬間のSE")]
     public AudioClip PauseExitOneShot;
 
     [Range(0f, 1f)]
@@ -245,10 +245,10 @@ public class PlayerDie : MonoBehaviour
         if (PausePanel != null) PausePanel.SetActive(false);
         if (GameRoot != null) GameRoot.SetActive(false);
 
-        /*
-             参照の自動取得（未設定なら拾う）
-             未設定で致命的なものはエラーを出す
-        */
+        //================
+        // 参照の自動取得
+        //================
+
         if (Bgm == null) Bgm = FindFirstObjectByType<BGM_Manager>();
         if (Bgm == null) Debug.LogError("[PlayerDie] Bgm が未設定です（BGMManager をシーンに配置してください）");
 
@@ -266,15 +266,16 @@ public class PlayerDie : MonoBehaviour
         if (Spawner == null) Debug.LogError("[PlayerDie] Spawner が未設定です（EnemySpawner を設定してください）");
         if (GameRoot == null) Debug.LogError("[PlayerDie] GameRoot が未設定です（ゲーム本体のルートを設定してください）");
 
-        /*
-             Player から取得できる参照を揃える
-             Titleで GameRoot がOFFでも拾えるように true 探索を使う
-        */
+        //================
+        // Player参照の自動取得
+        //================
+
         AutoBindPlayerRefs();
 
-        /*
-             見た目/操作/位置/敵の初期化
-        */
+        //================
+        // 初期化
+        //================
+
         CacheInitialPlayerColorIfNeeded();
         ResetPlayerVisual();
         EnablePlayerControls();
@@ -286,9 +287,6 @@ public class PlayerDie : MonoBehaviour
 
         StateCurrent = State.Title;
 
-        /*
-             Title 表示に合わせて UI を更新する
-        */
         ApplyUiVisibilityForState();
 
         if (Bgm != null) Bgm.PlayTitle();
@@ -305,10 +303,9 @@ public class PlayerDie : MonoBehaviour
 
         /*
              Spawner 管理下の敵を取得する
-             IReadOnlyList なので、読むだけに徹する
+             GetSpawnedEnemies() は null を返さない前提
         */
         IReadOnlyList<GameObject> Enemies = Spawner.GetSpawnedEnemies();
-        if (Enemies == null) return;
 
         /*
              sqrMagnitude で距離判定する
@@ -650,19 +647,19 @@ public class PlayerDie : MonoBehaviour
         Time.fixedDeltaTime = PrevFixed;
     }
 
-    IEnumerator PlayPlayerDamageFade(SpriteRenderer Sr)
+    IEnumerator PlayPlayerDamageFade(SpriteRenderer sr)
     {
         /*
              プレイヤーの色を赤くして、一定時間後に透明へフェードする
         */
         CacheInitialPlayerColorIfNeeded();
 
-        Color BaseColor = HasInitialPlayerColor ? InitialPlayerColor : Sr.color;
+        Color BaseColor = HasInitialPlayerColor ? InitialPlayerColor : sr.color;
 
         Color RedColor = Color.Lerp(BaseColor, Color.red, DamageRedStrength);
         RedColor.a = BaseColor.a;
 
-        Sr.color = RedColor;
+        sr.color = RedColor;
 
         if (DamageHold > 0f) yield return new WaitForSecondsRealtime(DamageHold);
 
@@ -672,19 +669,20 @@ public class PlayerDie : MonoBehaviour
         while (t < Dur)
         {
             t += Time.unscaledDeltaTime;
+
             float a = Mathf.Clamp01(t / Dur);
 
             Color c = RedColor;
             c.a = Mathf.Lerp(BaseColor.a, 0f, a);
 
-            Sr.color = c;
+            sr.color = c;
 
             yield return null;
         }
 
-        Color End = Sr.color;
+        Color End = sr.color;
         End.a = 0f;
-        Sr.color = End;
+        sr.color = End;
     }
 
     IEnumerator GameOverSequence()
@@ -762,8 +760,10 @@ public class PlayerDie : MonoBehaviour
         Spawner.StopSpawn();
         Spawner.enabled = false;
 
+        /*
+             GetSpawnedEnemies() は null を返さない前提
+        */
         IReadOnlyList<GameObject> Enemies = Spawner.GetSpawnedEnemies();
-        if (Enemies == null) return;
 
         GameObject[] Snapshot = Enemies.ToArray();
         for (int i = 0; i < Snapshot.Length; i++)
