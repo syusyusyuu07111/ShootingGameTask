@@ -126,7 +126,7 @@ public sealed class EnemySpawner : MonoBehaviour
     private void Start()
     {
         //================
-        // Validate
+        // 参照
         //================
 
         /*
@@ -281,9 +281,7 @@ public sealed class EnemySpawner : MonoBehaviour
         */
         while (true)
         {
-            //================
-            // Validate (Runtime)
-            //================
+
 
             /*
                  途中で参照が切れた場合の保険
@@ -291,9 +289,11 @@ public sealed class EnemySpawner : MonoBehaviour
                  ・シーン切替や破棄で参照がnullになる可能性がある
                  ・致命なら待って再試行する
             */
+#if UNITY_EDITOR
+
             if (EnemyPrefab == null)
             {
-                Debug.LogError("[EnemySpawner] EnemyPrefab が未設定です（スポーンできません）");
+                Debug.LogError("[EnemySpawner] EnemyPrefab が未設定ですif（スポーンできません）");
                 yield return new WaitForSeconds(1f);
                 continue;
             }
@@ -312,6 +312,7 @@ public sealed class EnemySpawner : MonoBehaviour
                 yield return new WaitForSeconds(1f);
                 continue;
             }
+#endif
 
             //================
             // Cleanup List
@@ -384,8 +385,7 @@ public sealed class EnemySpawner : MonoBehaviour
         /*
              SEが未設定なら何もしない
 
-             ・SEは演出だが、無くてもゲームは進行できる
-             ・ただし「鳴らしたいのに未設定」はミスなのでエラーを出す
+             ・SE未設定のときにログを出す
         */
         if (LaunchSE == null)
         {

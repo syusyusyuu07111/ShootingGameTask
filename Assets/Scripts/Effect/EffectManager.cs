@@ -10,7 +10,7 @@ using UnityEngine;
      【設計方針】
      ・生成処理は呼ばれたタイミングだけ行う（Updateは使わない）
      ・Prefab未設定は不具合なので必ずエラーを出す
-     ・2Dゲーム想定のため、生成座標のZは0に固定する
+     ・生成座標のZは0に固定する
 */
 public sealed class EffectManager : MonoBehaviour
 {

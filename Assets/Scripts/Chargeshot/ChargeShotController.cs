@@ -8,8 +8,6 @@ using UnityEngine.InputSystem;
      ・押している間チャージする
      ・離した瞬間に弾を発射する
      ・チャージが成立していたら「通常より2倍大きい弾」を出す（localScaleで変更）
-     ・入力は旧Input（UnityEngine.Input）を使わず、新InputSystem（UnityEngine.InputSystem）だけを使う
-       → InvalidOperationException を避ける
 
      【設計方針】
      ・通常ショット（BulletController）とは別スクリプトで完結させる
@@ -37,7 +35,7 @@ public sealed class ChargeShotController : MonoBehaviour
 
     [Header("Charge Settings")]
     [Tooltip("この秒数以上押してから離すとチャージショットになる")]
-    [SerializeField] private float ChargeTime = 0.6f;
+    [SerializeField] private float ChargeTime = 5.0f;
 
     [Tooltip("チャージ成立時の弾スケール倍率（2倍なら2）")]
     [SerializeField] private float ChargedScaleMultiplier = 2.0f;
@@ -50,7 +48,7 @@ public sealed class ChargeShotController : MonoBehaviour
     //================
 
     /*
-         ここは「弾の当たり判定が大きくならない」対策用オプション
+         ここは「弾の当たり判定が大きくならない」
 
          ・弾の見た目だけscaleで大きくしても、当たり判定が別管理だと大きくならない
          ・今回のプロジェクトは EnemyController が「距離判定」で当たり判定しているので
@@ -59,10 +57,9 @@ public sealed class ChargeShotController : MonoBehaviour
          → そのため、チャージ弾を撃つ時に Bullet.SetHitRadiusMultiplier を呼んで
            弾側の当たり半径を広げる運用にできるようにしている
 
-         ※ Bullet にこのAPIが無い場合は、下の SetChargedBulletHitRadius() の呼び出しをコメントアウトしてOK
     */
     [Header("Charged Bullet Radius (Optional)")]
-    [Tooltip("チャージ成立時に弾の当たり半径も拡大する（見た目と一致させたい場合）")]
+    [Tooltip("チャージ成立時に弾の当たり半径も拡大する（見た目と一致させる）")]
     [SerializeField] private bool ExpandBulletHitRadius = true;
 
     [Tooltip("当たり半径倍率（見た目2倍なら半径も2倍が分かりやすい）")]
@@ -93,7 +90,7 @@ public sealed class ChargeShotController : MonoBehaviour
     //================
 
     /*
-         InputSystem_Actions を使う（旧Inputは使わない）
+         InputSystem_Actions
          ・Input.Player.Attack をチャージ入力として使う想定
          ・Attackが通常ショットでも使われている場合は、別Action（Chargeなど）を割り当て推奨
     */
@@ -187,7 +184,7 @@ public sealed class ChargeShotController : MonoBehaviour
         //================
 
         /*
-             Attackボタンの押下状態を取得する（新InputSystem）
+             Attackボタンの押下状態を取得する
 
              ・IsPressed() は「押している間true」
              ・離した瞬間は IsPressed が false に切り替わる
@@ -325,12 +322,10 @@ public sealed class ChargeShotController : MonoBehaviour
         //================
 
         /*
-             プールは「前回の状態が残る」可能性があるので、
-             まず scale を必ず通常値に戻してから、チャージなら倍率をかける
+             プールは「前回の状態が残る」可能性があるので
+             まず scale を必ず通常値に戻してから、チャージ倍率をかける
 
-             ※通常値を「Prefabのscale」と一致させたい場合は、
-               Bullet側に初期scaleを保持する仕組みを作るのが理想。
-               ここでは簡単実装として Vector3.one を基準にする。
+　　　　　　　簡単実装として Vector3.one を基準にする。
         */
         BulletTransform.localScale = Vector3.one;
 
@@ -358,7 +353,7 @@ public sealed class ChargeShotController : MonoBehaviour
         //================
 
         /*
-             離した瞬間の発射SE（任意）
+             離した瞬間の発射SE
         */
         PlayOneShot(ReleaseFireSe, ReleaseFireSeVolume);
     }
@@ -374,10 +369,6 @@ public sealed class ChargeShotController : MonoBehaviour
 
              重要：
              ・EnemyControllerが Bullet.GetHitRadius() を見て当たり判定している前提
-             ・Bullet側に下記のようなAPIが必要
-
-               public float GetHitRadius() { ... }
-               public void SetHitRadiusMultiplier(float mul) { ... }
 
              Bulletにまだ無いなら、まず Bullet を拡張してから使う。
              ひとまず安全に null チェックして「無いなら何もしない」設計にしている。
