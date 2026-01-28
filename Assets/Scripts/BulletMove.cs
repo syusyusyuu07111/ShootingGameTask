@@ -1,20 +1,51 @@
 using UnityEngine;
 
-public class BulletMove : MonoBehaviour
+/*
+     弾を一定方向に移動させるクラス
+
+     ・毎フレーム、弾を右方向へ移動させる
+     ・速度は外部（PoolManagerなど）から設定できるようにする
+*/
+public sealed class BulletMove : MonoBehaviour
 {
-    public float Speed = 5f;
+    //================
+    // Move Settings
+    //================
 
-    Transform tr;
+    [SerializeField] private float Speed = 5f;
 
-    void Awake()
+    //================
+    // Cache
+    //================
+
+    private Transform CachedTransform;
+
+    //================
+    // Public
+    //================
+
+    /*
+         速度を設定する
+
+         ・Speed を public にせず、設定口を関数にして事故を減らす
+         ・PoolManager側からここを呼んで速度を統一管理する
+    */
+    public void SetSpeed(float Value)
     {
-        // Transform をキャッシュしておく
-        tr = transform;
+        Speed = Value;
     }
 
-    void Update()
+    //================
+    // Unity Event
+    //================
+
+    private void Awake()
     {
-        // 弾を右に飛ばす
-        tr.position += Vector3.right * Speed * Time.deltaTime;
+        CachedTransform = transform;
+    }
+
+    private void Update()
+    {
+        CachedTransform.position += Vector3.right * Speed * Time.deltaTime;
     }
 }

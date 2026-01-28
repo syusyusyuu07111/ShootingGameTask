@@ -1,9 +1,9 @@
 using UnityEngine;
 
-/// <summary>
+/*
 /// アプリ起動時に「保存データ（PlayerPrefs）」を消して、毎回リセットする
 /// ・ビルドを閉じたら次回起動でBESTも消える
-/// </summary>
+*/
 public class SessionResetOnBoot : MonoBehaviour
 {
     [Tooltip("起動時にBESTスコア(Top3)をリセットする")]
@@ -17,8 +17,9 @@ public class SessionResetOnBoot : MonoBehaviour
             BestScoreTop3.Clear();
         }
 
-        // もし「他のPlayerPrefsも全部消したい」なら下を使う
-        // PlayerPrefs.DeleteAll();
-        // PlayerPrefs.Save();
+        /* 全部消す機能を追加するときに以下を使う
+        PlayerPrefs.DeleteAll();
+        PlayerPrefs.Save();
+        */
     }
 }

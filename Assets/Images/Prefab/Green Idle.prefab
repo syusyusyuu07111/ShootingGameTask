@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 8500405320971941643}
   - component: {fileID: 8320988196231094458}
   - component: {fileID: 6458188681572244339}
+  - component: {fileID: 6712973948758276110}
   m_Layer: 0
   m_Name: Green Idle
   m_TagString: Untagged
@@ -126,6 +127,33 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2de7ad13ca636c74b8c31f1d67e2f231, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyController
-  DeathDistance: 0.5
-  anim: {fileID: 8320988196231094458}
-  IsDeath: 0
+  HitRadius: 0.5
+  HitCenter: {fileID: 0}
+  DestroyDelay: 0
+  EffectManager: {fileID: 0}
+  ScoreManager: {fileID: 0}
+  DeathBoolParam: IsDeath
+  TargetRenderer: {fileID: 0}
+  BurstDistance: 0.9
+  BurstTime: 0.18
+  BurstRotate: 240
+  AfterBurstWait: 0.05
+  PiecesLife: 0.25
+  SeSource: {fileID: 0}
+  HitOneShot: {fileID: 8300000, guid: 8e3b6acf388299143ad75a7021590e38, type: 3}
+  HitOneShotVolume: 1
+--- !u!114 &6712973948758276110
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7969928934603087417}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 88718a37f616de0429d090732a34ca5a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyMove
+  Speed: 0.9
+  CurrentMoveType: 0
+  DiagonalDirection: {x: -1, y: -1}

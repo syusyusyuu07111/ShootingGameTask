@@ -1,56 +1,120 @@
 using UnityEngine;
 
 /*
-    背景を横方向にスクロールさせるクラス
-    ・毎フレーム左方向へ移動
-    ・一定のX座標を超えたら、右側へ瞬時に戻す
+     背景を横方向にスクロールさせるクラス
 
-    設計
-    ・transform.position を少しずつ動かすことで「スクロール」に見せる
-    ・「画面外に出たら瞬間移動させる」ことで、無限スクロールを表現する
+     【挙動】
+     ・毎フレーム、背景を左方向へ少しずつ移動させる
+     ・一定のX座標を超えて画面外に出たら
+       右端の開始位置へ瞬時に戻す
+     ・これを繰り返すことで、無限に流れているように見せる
+
+     【設計意図】
+     ・transform.position を直接操作して移動させる
+     ・物理演算は使わず、軽量な座標更新のみで処理する
+     ・背景が画面外に完全に出たタイミングで再配置することで
+       見た目上のつなぎ目をなくす
 */
-public class BackgroundScroll : MonoBehaviour
+public sealed class BackgroundScroll : MonoBehaviour
 {
+    //================
+    // Scroll Settings
+    //================
+
+    /*
+         1秒あたりに移動する速度
+         値が大きいほどスクロールが速くなる
+    */
     [Header("Scroll Settings")]
     [SerializeField] private float ScrollSpeed = 3.0f;
 
-    [Tooltip("このX座標を超えたらループ")]
+    /*
+         このX座標より左に進んだらループさせる境界ライン
+         「ここを超えたら画面外に完全に出た」と判断する
+    */
+    [Tooltip("このX座標を下回ったらループ")]
     [SerializeField] private float ResetBorderX = -4935f;
 
+    /*
+         ループ時に戻す開始位置のX座標
+         右端の背景の初期配置位置として使用する
+    */
     [Tooltip("ループ後に戻すX座標")]
     [SerializeField] private float ResetX = 23f;
 
-    Transform CachedTransform;
+    //================
+    // Cache
+    //================
 
-    void Awake()
+    /*
+         背景自身のTransformを保持する
+
+         ・Update内で毎フレーム参照するためキャッシュしておく
+         ・transformを毎回取得する処理コストを避ける目的
+         ・位置操作はすべてこの変数経由で行う
+    */
+    private Transform BackgroundTransform;
+
+    //================
+    // Unity Event
+    //================
+
+    private void Awake()
     {
-        CachedTransform = transform;
+        /*
+             自身のTransformを取得して保持する
+             以降は transform を直接使わず、この変数を利用する
+        */
+        BackgroundTransform = transform;
     }
 
-    void Update()
+    private void Update()
     {
-        // =====================================================
-        // ① 毎フレーム左にスクロールする処理
-        // =====================================================
+        //================
+        // Scroll
+        //================
 
-        // 「1フレームごとに、左へ少しずつ移動する」
-        CachedTransform.position += Vector3.left * ScrollSpeed * Time.deltaTime;
+        /*
+             毎フレーム、背景を左方向へ移動させる
 
-        // =====================================================
-        // ② 一定位置まで行ったらループさせる処理
-        // =====================================================
+             ・Vector3.left      → 左方向ベクトル
+             ・ScrollSpeed       → 移動速度
+             ・Time.deltaTime    → フレーム依存防止
 
-        // ・背景が「画面の外まで完全に流れ切ったか？」を判定
-        // ・ResetBorderX は「これ以上左に行ったら見えない」ライン
-        if (CachedTransform.position.x > ResetBorderX) return;
+             これにより、FPSに依存しない一定速度でスクロールする
+        */
+        BackgroundTransform.position
+            += Vector3.left * ScrollSpeed * Time.deltaTime;
 
-        Vector3 pos = CachedTransform.position;
+        //================
+        // Loop Check
+        //================
 
-        // X座標だけを「右端の開始位置」に戻す
-        // ・Y/Zはそのまま維持する
+        /*
+             背景がまだ画面内にあるかを判定する
+
+             X座標が ResetBorderX より大きい間は
+             まだ表示範囲内なので何もしない
+        */
+        if (BackgroundTransform.position.x > ResetBorderX) return;
+
+        //================
+        // Loop Reset
+        //================
+
+        /*
+             画面外に出た背景を右端へ戻す処理
+
+             ・現在位置を一度Vector3に取得
+             ・X座標だけを書き換える
+             ・Y/Zはそのまま維持する
+        */
+        Vector3 pos = BackgroundTransform.position;
+
+        // 右端の開始位置へ移動
         pos.x = ResetX;
 
-        // 新しい座標を反映
-        CachedTransform.position = pos;
+        // 変更後の座標を反映
+        BackgroundTransform.position = pos;
     }
 }

@@ -2,94 +2,173 @@ using UnityEngine;
 
 /*
      プレイヤーの移動を制御するクラス
-     ・入力から移動量を作る
-     ・移動範囲を制限する
-     ・移動中/停止中でアニメを切り替える
+
+     【主な役割】
+     ・入力から移動量を作り、プレイヤーを移動させる
+     ・移動範囲（X/Y）を制限して画面外へ出ないようにする
+     ・移動中/停止中でアニメ（歩き）を切り替える
+
+     【設計方針】
+     ・Updateは移動処理に集中させる
+     ・transform参照はキャッシュして読みやすくする
+     ・アニメ更新は「値が変わった時だけ」行い、無駄なSetBoolを減らす
 */
-public class PlayerController : MonoBehaviour
+public sealed class PlayerController : MonoBehaviour
 {
     //================
     // Move Settings
     //================
 
-    // プレイヤーの移動速度
+    /*
+         移動速度（1秒あたりの移動量）
+         値を大きくすると速くなる
+    */
     [SerializeField] private float Speed = 5f;
 
-    // 実際に動かすプレイヤーのTransform
+    /*
+         実際に動かすプレイヤーのTransform
+
+         ・親のTransformを動かしたい/子だけ動かしたい、など設計で変わる
+         ・未設定は不具合なのでStartでエラーを出す
+    */
     [SerializeField] private Transform Player;
+
 
     //================
     // Move Limit (X)
     //================
 
-    // プレイヤーが移動できるX座標の左端制限
     [SerializeField] private float LimitLeft = -8f;
-
-    // プレイヤーが移動できるX座標の右端制限
     [SerializeField] private float LimitRight = 8f;
+
 
     //================
     // Move Limit (Y)
     //================
 
-    // プレイヤーが移動できるY座標の下端制限
     [SerializeField] private float LimitDown = -4f;
-
-    // プレイヤーが移動できるY座標の上端制限
     [SerializeField] private float LimitUp = 6f;
+
 
     //================
     // Input / Anim
     //================
 
-    InputSystem_Actions Input;
-    Animator Animator;
+    private InputSystem_Actions Input;
+    private Animator Anim;
+
 
     //================
-    // State / Control
+    // Control
     //================
-
-    // プレイヤーが現在移動中かどうか
-    [SerializeField] private bool IsMoving = false;
 
     [Header("Control")]
     [Tooltip("false の間は移動入力を受け付けない")]
     public bool ControlEnabled = true;
 
+
+    //================
+    // Debug State
+    //================
+
+    /*
+         現在移動中かどうか（内部状態）
+
+         ・外部から書き換えさせないため private
+         ・挙動確認のために保持している
+    */
+    private bool IsMoving = false;
+
+    /*
+         直前にAnimへ送った歩き状態
+
+         ・毎フレームSetBoolしないためのキャッシュ
+         ・値が変わった時だけ更新する
+    */
+    private bool LastWalkAnim = false;
+
+
+    //================
+    // Cache
+    //================
+
+    /*
+         PlayerTransformを保持する
+
+         ・Update内で Player を直接触らない
+         ・読みやすさと統一のため「役割名」で保持する
+    */
+    private Transform PlayerTransform;
+
+
     //================
     // Unity Event
     //================
 
-    void Awake()
+    private void Awake()
     {
-        // 入力システムを生成する
+        /*
+             入力システムを生成する
+             Enable/DisableはOnEnable/OnDisableで切り替える
+        */
         Input = new InputSystem_Actions();
     }
 
-    void OnEnable()
+    private void OnEnable()
     {
-        // Player入力を有効化する
+        /*
+             Player入力を有効化する
+        */
         Input.Player.Enable();
     }
 
-    void OnDisable()
+    private void OnDisable()
     {
-        // Player入力を無効化する
+        /*
+             Player入力を無効化する
+        */
         Input.Player.Disable();
     }
 
-    void Start()
+    private void Start()
     {
-        // Animator を取得する
-        Animator = GetComponent<Animator>();
+        //================
+        // Cache
+        //================
+
+        /*
+             Animatorを取得する
+             （無い場合はアニメ切替ができないだけで移動は可能）
+        */
+        Anim = GetComponent<Animator>();
+
+        /*
+             PlayerTransformを保持する
+             未設定は不具合なのでエラーを出す
+        */
+        if (Player == null) Debug.LogError("[PlayerController] Player が未設定です（Transform を設定してください）");
+        PlayerTransform = Player;
+
+        /*
+             初期状態は停止
+             歩きアニメも停止に寄せる
+        */
+        IsMoving = false;
+        SetWalkAnimation(false);
     }
 
-    void Update()
+    private void Update()
     {
+        //================
+        // Control Disable
+        //================
+
         /*
              操作不能中は完全停止する
+
              ・移動フラグを落とす
              ・歩きアニメを止める
+             ・位置更新はしない
         */
         if (!ControlEnabled)
         {
@@ -99,13 +178,27 @@ public class PlayerController : MonoBehaviour
         }
 
         /*
+             PlayerTransform が無い場合は移動できない
+             （Startでエラーは出ている）
+        */
+        if (PlayerTransform == null) return;
+
+        //================
+        // Input
+        //================
+
+        /*
              入力から移動量を取得する
+
              ・WASD / スティック
+             ・入力値は -1～1 が基本（デバイスにより強さが変わる）
         */
         Vector2 Move = Input.Player.Move.ReadValue<Vector2>();
 
         /*
-             入力が無いなら停止扱い
+             入力がほぼ無いなら停止扱い
+
+             ・微小入力（スティックの遊び）で勝手に動かないよう閾値を設ける
         */
         float MoveSq = Move.sqrMagnitude;
         bool HasMove = MoveSq > 0.01f;
@@ -117,50 +210,73 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
+        //================
+        // Move
+        //================
+
         /*
              入力があるなら移動する
         */
-        if (Player == null)
-        {
-            Debug.LogError("[PlayerController] Player が未設定です（Transform を設定してください）");
-            return;
-        }
-
         IsMoving = true;
         SetWalkAnimation(true);
 
         /*
-             position をいじるので Transform を変数に保持する
+             positionを編集するため、現在座標を取り出して編集してから戻す
         */
-        Transform Tr = Player;
+        Vector3 Pos = PlayerTransform.position;
 
-        Vector3 Pos = Tr.position;
-
-        // X,Y 両方動かす
         float dt = Time.deltaTime;
+
         float MoveX = Move.x * Speed * dt;
         float MoveY = Move.y * Speed * dt;
 
         Pos.x += MoveX;
         Pos.y += MoveY;
 
-        // 移動制限
+        //================
+        // Clamp
+        //================
+
+        /*
+             移動制限
+
+             ・画面外へ出ないように座標をClampする
+        */
         Pos.x = Mathf.Clamp(Pos.x, LimitLeft, LimitRight);
         Pos.y = Mathf.Clamp(Pos.y, LimitDown, LimitUp);
 
-        Tr.position = Pos;
+        PlayerTransform.position = Pos;
     }
+
 
     //================
     // Animation
     //================
 
-    void SetWalkAnimation(bool IsWalk)
+    private void SetWalkAnimation(bool IsWalk)
     {
-        // Animator が無い場合は何もしない
-        if (Animator == null) return;
+        /*
+             Animatorが無いなら何もしない
+             （移動自体は可能）
+        */
+        if (Anim == null) return;
 
-        // iswalk を更新する
-        Animator.SetBool("iswalk", IsWalk);
+        /*
+             同じ値を毎フレームSetBoolしない
+
+             ・Animatorへの更新は地味にコストになる
+             ・値が変わった時だけ送る
+        */
+        if (LastWalkAnim == IsWalk) return;
+
+        LastWalkAnim = IsWalk;
+
+        /*
+             "iswalk" を更新する
+
+             ・Animator側にBoolパラメータが必要
+             ・名前を変える場合はAnimatorと合わせる
+        */
+        Anim.SetBool("iswalk", IsWalk);
     }
 }

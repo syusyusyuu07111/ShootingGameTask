@@ -1,10 +1,10 @@
 using UnityEngine;
 using TMPro;
 
-/// <summary>
+/*
 /// タイトル画面用：BEST 1 / 2 / 3 表示
 /// ・各TMP_Textを個別にON/OFFする
-/// </summary>
+*/
 public class BestScoreUI : MonoBehaviour
 {
     public TMP_Text best1Text;
@@ -14,9 +14,9 @@ public class BestScoreUI : MonoBehaviour
     public string prefix = "BEST ";
     public string empty = "-";
 
-    /// <summary>
+    /*
     /// 表示更新（数値反映）
-    /// </summary>
+    */
     public void Refresh()
     {
         BestScoreTop3.Get(out int b1, out int b2, out int b3);
@@ -34,9 +34,9 @@ public class BestScoreUI : MonoBehaviour
         else t.text = $"{prefix}{rank}: {empty}";
     }
 
-    /// <summary>
+    /*
     /// タイトル画面：表示ON
-    /// </summary>
+    */
     public void Show()
     {
         SetActive(best1Text, true);
@@ -45,9 +45,9 @@ public class BestScoreUI : MonoBehaviour
         Refresh();
     }
 
-    /// <summary>
+    /*
     /// タイトル以外：非表示
-    /// </summary>
+    */
     public void Hide()
     {
         SetActive(best1Text, false);

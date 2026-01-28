@@ -1056,6 +1056,7 @@ GameObject:
   - component: {fileID: 512384777}
   - component: {fileID: 512384778}
   - component: {fileID: 512384779}
+  - component: {fileID: 512384780}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -1176,7 +1177,6 @@ MonoBehaviour:
   LimitRight: 10
   LimitDown: -4
   LimitUp: 6
-  IsMoving: 0
   ControlEnabled: 1
 --- !u!114 &512384778
 MonoBehaviour:
@@ -1198,6 +1198,7 @@ MonoBehaviour:
   LaunchSE: {fileID: 8300000, guid: 814619cacda116e4cbe0deb468ca82ea, type: 3}
   Volume: 1
   MinInterval: 0.05
+  BulletLifeTime: 2
 --- !u!114 &512384779
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1210,8 +1211,32 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 82ede6dd88f81624ab5e2000748a8379, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Animation
-  Frames: []
+  Frames:
+  - {fileID: 209150208, guid: 422c2bfcd25e2b045848c518111c16b1, type: 3}
+  - {fileID: 623347818, guid: 422c2bfcd25e2b045848c518111c16b1, type: 3}
+  - {fileID: -331636488, guid: 422c2bfcd25e2b045848c518111c16b1, type: 3}
+  - {fileID: 1035476820, guid: 422c2bfcd25e2b045848c518111c16b1, type: 3}
+  - {fileID: -818121920, guid: 422c2bfcd25e2b045848c518111c16b1, type: 3}
+  - {fileID: -170588532, guid: 422c2bfcd25e2b045848c518111c16b1, type: 3}
   Speed: 12
+--- !u!114 &512384780
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 512384773}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6aab9be2629fd1488796bc4d4c503c8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ChargeShotController
+  Pool: {fileID: 1762866822}
+  Player: {fileID: 512384776}
+  NormalShot: {fileID: 512384778}
+  MinChargeTimeToFire: 0.2
+  ChargeBulletScale: {x: 5, y: 5, z: 1}
+  BulletLifeTime: 2
 --- !u!1 &553546349
 GameObject:
   m_ObjectHideFlags: 0
@@ -1846,7 +1871,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemySpawner
   AppearanceTime: 3
-  EnemyPrefab: {fileID: 1762866816}
+  EnemyPrefab: {fileID: 7969928934603087417, guid: c4eda8e4d36c75948b42ba99804e52bb, type: 3}
   Player: {fileID: 512384776}
   SeSource: {fileID: 553546350}
   LaunchSE: {fileID: 8300000, guid: 877af0ff4fdd7e74ab457a051b6d98ad, type: 3}
@@ -2596,6 +2621,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3082f7294b998154eb2d2f10cd6d669e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Bullet
+  BaseHitRadius: 0.4
 --- !u!114 &1762866821
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2623,6 +2649,8 @@ MonoBehaviour:
   Prefab: {fileID: 7947723639241107059, guid: aa46441debc58354e85e8e588dbc4c8b, type: 3}
   Speed: 5
   LifeTime: 2
+  DefaultCapacity: 10
+  MaxSize: 100
 --- !u!4 &1762866824 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3336567009610070623, guid: 6a3507da551542640b0e54cd36d18c73, type: 3}

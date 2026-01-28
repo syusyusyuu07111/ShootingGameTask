@@ -2,43 +2,78 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /*
-     弾を管理するためのクラス
-     現在シーン内に存在している弾をすべて記録する
+     弾の管理クラス（当たり判定対応版）
+
+     【役割】
+     ・全弾をリストで管理する（EnemyController用）
+     ・通常弾 / チャージ弾の当たり半径を管理する
 */
-public class Bullet : MonoBehaviour
+public sealed class Bullet : MonoBehaviour
 {
+    //================
+    // All Bullets
+    //================
+
     /*
-         現在「生きている」弾の一覧
-         ・EnemyController から参照
-         ・Destroy / Pool で非アクティブになると自動で外れる
+         現在有効な弾の一覧
     */
     public static readonly List<Bullet> AllBullets = new List<Bullet>();
+
+
+    //================
+    // Hit Radius
+    //================
+
+    [Header("Hit Settings")]
+
+    [Tooltip("通常時の当たり半径")]
+    [SerializeField] private float BaseHitRadius = 0.4f;
+
+    /*
+         チャージ時などで倍率をかける用
+         （1 = 通常）
+    */
+    private float HitRadiusMultiplier = 1f;
+
 
     //================
     // Unity Event
     //================
 
-    void OnEnable()
+    private void OnEnable()
     {
-        /*
-             GameObject が有効化された瞬間に呼ばれる
-             ・生成時
-             ・オブジェクトプールから再利用された時
-        */
+        if (!AllBullets.Contains(this))
+        {
+            AllBullets.Add(this);
+        }
 
-        // 二重登録防止
-        if (!AllBullets.Contains(this)) AllBullets.Add(this);
+        // プール再利用対策：倍率を初期化
+        HitRadiusMultiplier = 1f;
     }
 
-    void OnDisable()
+    private void OnDisable()
     {
-        /*
-             GameObject が無効化された瞬間に呼ばれる
-             ・Destroy された時
-             ・オブジェクトプールに戻った時
-        */
-
-        // 管理リストから除外
         AllBullets.Remove(this);
+    }
+
+
+    //================
+    // Public API
+    //================
+
+    /*
+         EnemyController が使う当たり半径
+    */
+    public float GetHitRadius()
+    {
+        return BaseHitRadius * HitRadiusMultiplier;
+    }
+
+    /*
+         チャージ用：半径倍率を変更
+    */
+    public void SetHitRadiusMultiplier(float multiplier)
+    {
+        HitRadiusMultiplier = Mathf.Max(0.01f, multiplier);
     }
 }

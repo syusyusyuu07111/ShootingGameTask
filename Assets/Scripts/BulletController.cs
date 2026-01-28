@@ -2,36 +2,56 @@ using UnityEngine;
 
 /*
      プレイヤーの弾発射を制御するクラス
-     ・発射間隔管理
-     ・入力受付
-     ・弾の生成（PoolManager利用）
-     ・発射SEの再生
+
+     【主な役割】
+     ・発射間隔（クールタイム）を管理する
+     ・入力を監視して発射条件を満たしたら弾を出す
+     ・弾はPoolManagerから取得して再利用する
+     ・発射SEを再生する
+     ・弾の寿命（返却タイマー）を設定する
+
+     【設計方針】
+     ・Updateは「撃つかどうか」だけに集中させる
+     ・参照の未設定はStartでエラーを出し、実行中にログが増え続けないようにする
+     ・transform参照はキャッシュして読みやすくする
 */
-public class BulletController : MonoBehaviour
+public sealed class BulletController : MonoBehaviour
 {
     //================
-    // 参照
+    // Reference
     //================
 
     [SerializeField] private PoolManager Pool;
+
+    [Tooltip("弾の出現位置の基準（プレイヤーTransform）")]
     [SerializeField] private Transform Player;
 
+
     //================
-    // 発射設定
+    // Fire Settings
     //================
 
     [SerializeField] private float FireInterval = 0.2f;
+
+    /*
+         発射間隔タイマー
+
+         ・deltaTimeで加算していき、FireInterval以上になったら発射可能
+         ・発射した瞬間に0へ戻す
+    */
     private float FireTimer = 0f;
 
+
     //================
-    // 入力
+    // Input
     //================
 
-    InputSystem_Actions Input;
+    private InputSystem_Actions Input;
 
     [Header("Control")]
     [Tooltip("false の間は攻撃入力を受け付けない")]
     public bool ControlEnabled = true;
+
 
     //================
     // Audio
@@ -39,6 +59,7 @@ public class BulletController : MonoBehaviour
 
     [Header("Audio")]
     [SerializeField] private AudioSource SeSource;
+
     [SerializeField] private AudioClip LaunchSE;
 
     [Range(0f, 1f)]
@@ -50,109 +71,173 @@ public class BulletController : MonoBehaviour
 
     private float LastPlayTime = -999f;
 
+
+    //================
+    // Bullet Life
+    //================
+
+    [Header("Bullet Life (Destroyer)")]
+    [Tooltip("Destroyerが付いている場合に設定する自動返却時間")]
+    [SerializeField] private float BulletLifeTime = 2f;
+
+
+    //================
+    // Cache
+    //================
+
+    private Transform PlayerTransform;
+
+
     //================
     // Unity Event
     //================
 
-    void Awake()
+    private void Awake()
     {
         /*
-             InputSystem を生成する
+             InputSystem_Actions を生成する
+             入力のEnable/DisableはOnEnable/OnDisableで行う
         */
         Input = new InputSystem_Actions();
     }
 
-    void OnEnable()
+    private void OnEnable()
     {
         /*
-             入力受付を開始する
+             Player操作マップを有効化する
         */
-        Input.Enable();
+        Input.Player.Enable();
     }
 
-    void OnDisable()
+    private void OnDisable()
     {
         /*
              入力受付を停止する
         */
-        Input.Disable();
+        Input.Player.Disable();
     }
 
-    void Update()
+    private void Start()
     {
-        /*
-             操作不能中は発射しない
-             発射間隔タイマーも進めない
-        */
+        //================
+        // Validate
+        //================
+
+        if (Pool == null) Debug.LogError("[BulletController] Pool が未設定です（PoolManager を設定してください）");
+        if (Player == null) Debug.LogError("[BulletController] Player が未設定です（Transform を設定してください）");
+        if (SeSource == null) Debug.LogError("[BulletController] SeSource が未設定です（AudioSource を設定してください）");
+
+        PlayerTransform = Player;
+
+        if (SeSource != null) SeSource.playOnAwake = false;
+    }
+
+    private void Update()
+    {
+        //================
+        // Control
+        //================
+
         if (!ControlEnabled) return;
 
-        /*
-             参照が未設定ならエラーを出す
-        */
-        if (Pool == null) { Debug.LogError("[BulletController] Pool が未設定です（PoolManager を設定してください）"); return; }
-        if (Player == null) { Debug.LogError("[BulletController] Player が未設定です（Transform を設定してください）"); return; }
-        if (SeSource == null) { Debug.LogError("[BulletController] SeSource が未設定です（AudioSource を設定してください）"); return; }
+        if (Pool == null) return;
+        if (PlayerTransform == null) return;
 
-        /*
-             発射間隔タイマーを進める
-        */
+        //================
+        // Timer
+        //================
+
         FireTimer += Time.deltaTime;
 
-        /*
-             攻撃入力が押されていて、発射間隔を超えていれば発射する
-        */
+        //================
+        // Input Check
+        //================
+
         bool IsAttack = Input.Player.Attack.IsPressed();
-        bool CanFire = FireTimer >= FireInterval;
+        if (!IsAttack) return;
 
-        if (!IsAttack || !CanFire) return;
+        if (FireTimer < FireInterval) return;
+
+        //================
+        // Fire
+        //================
+
+        Fire();
+    }
+
+
+    //================
+    // Fire Core
+    //================
+
+    private void Fire()
+    {
+        //================
+        // SE
+        //================
+
+        PlayLaunchSe();
+
+        //================
+        // Spawn
+        //================
+
+        Vector3 SpawnPos = PlayerTransform.position;
+        Quaternion SpawnRot = Quaternion.identity;
+
+        GameObject BulletInstance = Pool.GetGameObject(SpawnPos, SpawnRot);
+        if (BulletInstance == null)
+        {
+            Debug.LogError("[BulletController] Pool から弾が取得できませんでした（GetGameObject が null を返しました）");
+            return;
+        }
+
+        //================
+        // Destroyer Setup
+        //================
 
         /*
-             発射SEが未設定ならエラーを出す
+             Destroyerが付いているなら寿命（返却タイマー）を設定する
+
+             ・PoolManagerへの返却口は Destroyer が持つ
+             ・PoolManagerを渡しておけば、寿命後にReleaseGameObjectを呼べる
         */
+        Destroyer Destroyer = BulletInstance.GetComponent<Destroyer>();
+        if (Destroyer != null)
+        {
+            Destroyer.SetPoolManager(Pool);
+            Destroyer.StartDestroyTimer(BulletLifeTime);
+        }
+
+        //================
+        // Timer Reset
+        //================
+
+        FireTimer = 0f;
+    }
+
+
+    //================
+    // SE Helper
+    //================
+
+    private void PlayLaunchSe()
+    {
         if (LaunchSE == null)
         {
             Debug.LogError("[BulletController] LaunchSE が未設定です（AudioClip を設定してください）");
             return;
         }
 
-        /*
-             効果音の多重再生防止（MinInterval未満なら再生しない）
-        */
-        if (Time.time - LastPlayTime < MinInterval) return;
-
-        LastPlayTime = Time.time;
-
-        /*
-             発射SE再生
-        */
-        SeSource.PlayOneShot(LaunchSE, Volume);
-
-        /*
-             プールから弾を取得して、プレイヤー位置に出す
-        */
-        Vector3 SpawnPos = Player.position;
-        Quaternion SpawnRot = Quaternion.identity;
-
-        GameObject Bullet = Pool.GetGameObject(SpawnPos, SpawnRot);
-        if (Bullet == null)
+        if (SeSource == null)
         {
-            Debug.LogError("[BulletController] Pool から弾が取得できませんでした（GetGameObject が null を返しました）");
+            Debug.LogError("[BulletController] SeSource が未設定です（AudioSource を設定してください）");
             return;
         }
 
-        /*
-             Destroyer が付いているなら、プール返却と自動破棄タイマーを設定する
-        */
-        Destroyer Destroyer = Bullet.GetComponent<Destroyer>();
-        if (Destroyer != null)
-        {
-            Destroyer.PoolManager = Pool;
-            Destroyer.StartDestroyTimer(2f);
-        }
+        if (Time.time - LastPlayTime < MinInterval) return;
+        LastPlayTime = Time.time;
 
-        /*
-             発射間隔タイマーをリセットする
-        */
-        FireTimer = 0f;
+        SeSource.PlayOneShot(LaunchSE, Volume);
     }
 }

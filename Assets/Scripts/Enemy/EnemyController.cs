@@ -3,23 +3,33 @@ using System.Collections;
 using System.Collections.Generic;
 
 /*
-    敵1体を管理するクラス
+     敵1体を管理するクラス
 
-    ・弾との距離で当たり判定
-    ・当たったら死亡（演出コルーチンへ）
-    ・Spawner生成ならSpawner経由で消す（List管理を壊さない）
-    ・死亡エフェクトはEffectManagerに通知して生成
-    ・死亡した瞬間にスコア加算（ScoreManagerがあれば）
+     【主な役割】
+     ・弾との距離で当たり判定を行う（Collider依存しない）
+     ・命中したら死亡（演出コルーチンへ）
+     ・Spawner生成の敵はSpawner経由で削除する（管理リストを壊さない）
+     ・死亡エフェクトはEffectManagerに通知して生成する
+     ・死亡した瞬間にスコアを加算する（ScoreManagerがあれば）
+
+     【当たり判定の設計】
+     ・敵の当たり半径（HitRadius）＋ 弾の当たり半径（Bullet.GetHitRadius()）で判定する
+     ・弾がチャージで大きくなった場合、弾側の半径を大きくしておけば当たり判定も大きくなる
+
+     【設計方針】
+     ・transform参照はキャッシュして、Update内で何度も呼ばない
+     ・死亡処理は1回だけ実行されるようにする（多重実行防止）
+     ・複雑な演出（Split）は工程ごとにコメントで意図を残す
 */
-public class EnemyController : MonoBehaviour
+public sealed class EnemyController : MonoBehaviour
 {
     //================
-    // 当たり判定
+    // Hit
     //================
 
     [SerializeField] private float HitRadius = 0.5f;
 
-    [Tooltip("当たり判定の中心（未設定ならEnemy位置）")]
+    [Tooltip("当たり判定の中心（未設定なら敵自身）")]
     [SerializeField] private Transform HitCenter;
 
     //================
@@ -51,7 +61,7 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private string DeathBoolParam = "IsDeath";
 
     //================
-    //敵死亡時演出
+    // Burst (Split演出)
     //================
 
     [Tooltip("見た目のSpriteRenderer（未設定なら子から自動取得）")]
@@ -73,7 +83,7 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private float PiecesLife = 0.25f;
 
     //================
-    // SE (One Shot)
+    // SE
     //================
 
     [Tooltip("未設定なら子から自動取得（無ければ未使用）")]
@@ -86,20 +96,62 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private float HitOneShotVolume = 1.0f;
 
     //================
-    // 生成管理
+    // Cache
     //================
 
-    Animator Anim;
-    bool IsDead = false;
+    /*
+         この敵自身のTransformを保持する
+
+         ・Updateで毎フレーム参照するためキャッシュする
+         ・transformプロパティを何度も呼ばない（可読性と統一）
+    */
+    private Transform EnemyTransform;
 
     /*
-        Spawner管理
-        Spawner生成の敵なら「Spawner経由で消す」ために保持する
-    */
-    EnemySpawner OwnerSpawner;
-    GameObject MyInstance;
+         当たり判定の中心Transformを保持する
 
-    Coroutine DeathRoutine;
+         ・HitCenterが設定されていればそれを使う
+         ・未設定ならEnemyTransformを中心とする
+         ・Update内で毎回「HitCenterがあるか」を判定しないための設計
+    */
+    private Transform HitCenterTransform;
+
+    /*
+         Colliderキャッシュ
+
+         ・死亡演出開始時に当たり判定を止めるために使う
+         ・GetComponentを死亡時に何度も呼ばない
+    */
+    private Collider Col3d;
+    private Collider2D Col2d;
+
+    /*
+         Animatorキャッシュ
+
+         ・死亡アニメがある場合にだけ使う
+         ・無い環境でも落ちない設計にしている
+    */
+    private Animator Anim;
+
+    //================
+    // State
+    //================
+
+    private bool IsDead = false;
+    private Coroutine DeathRoutine;
+
+    //================
+    // Spawner
+    //================
+
+    /*
+         Spawner管理情報
+
+         ・Spawnerが生成した敵ならOwnerSpawnerが入る
+         ・削除時はSpawner経由で処理する
+    */
+    private EnemySpawner OwnerSpawner;
+    private GameObject MyInstance;
 
     //======================================================
     /*
@@ -117,84 +169,149 @@ public class EnemyController : MonoBehaviour
     // Unity Event
     //================
 
-    void Start()
+    private void Awake()
     {
-        // Animator を取得する
+        // Transformをキャッシュ
+        EnemyTransform = transform;
+
+        /*
+             当たり判定中心を確定する
+
+             ・HitCenterがあればそこを中心にする
+             ・無ければ敵自身を中心にする
+             ・以降は HitCenterTransform.position を読むだけで済む
+        */
+        HitCenterTransform = EnemyTransform;
+        if (HitCenter != null) HitCenterTransform = HitCenter;
+
+        // Colliderをキャッシュ（無い場合もあるのでnull許容）
+        Col3d = GetComponent<Collider>();
+        Col2d = GetComponent<Collider2D>();
+    }
+
+    private void Start()
+    {
+        // Animator取得
         Anim = GetComponentInChildren<Animator>();
 
         /*
-            EffectManager 自動取得
-            未設定ならシーンから探す
-            それでも無ければエラー（エフェクトが出ないのは不具合なので）
+             EffectManager 自動取得
+
+             ・未設定ならシーンから探す
+             ・無い場合は演出が出ないためエラーを出す
         */
         if (EffectManager == null) EffectManager = FindFirstObjectByType<EffectManager>();
         if (EffectManager == null) Debug.LogError($"[Enemy] EffectManager がシーンに見つかりません name={name}");
 
         /*
-            ScoreManager 自動取得
-            未設定でも動くように探す
-            それでも無ければエラー（スコアが加算されないのは仕様外なので）
+             ScoreManager 自動取得
+
+             ・未設定でも動くように探す
+             ・無い場合はスコア加算ができないためエラーを出す
         */
         if (ScoreManager == null) ScoreManager = FindFirstObjectByType<ScoreManager>();
         if (ScoreManager == null) Debug.LogError($"[Enemy] ScoreManager がシーンに見つかりません name={name}");
 
         /*
-            分割演出用SpriteRenderer
-            子階層からも拾えるよう true（非アクティブも対象）
+             分割演出用SpriteRenderer
+
+             ・未設定なら子階層から探す
+             ・無い場合は分割演出ができないのでエラーを出す
         */
         if (TargetRenderer == null) TargetRenderer = GetComponentInChildren<SpriteRenderer>(true);
         if (TargetRenderer == null) Debug.LogError($"[Enemy] SpriteRenderer が見つかりません（4分割できません） name={name}");
 
         /*
-            SE用AudioSource
-            無くても致命ではない（鳴らせないだけ）
+             SE用AudioSource
+
+             ・無くても致命ではない（鳴らせないだけ）
         */
         if (SeSource == null) SeSource = GetComponentInChildren<AudioSource>(true);
         if (SeSource != null) SeSource.playOnAwake = false;
     }
 
-    void Update()
+    private void Update()
     {
         if (IsDead) return;
 
         /*
-            弾リストを参照して当たり判定
-            Bullet.AllBullets が無い/空なら何もしない
+             弾リストを参照して当たり判定
+
+             ・Bullet.AllBullets が無い/空なら何もしない
+             ・当たり判定は距離で行う（Collider依存しない）
         */
         List<Bullet> Bullets = Bullet.AllBullets;
         if (Bullets == null || Bullets.Count == 0) return;
 
+        //================
+        // Hit Check
+        //================
+
         /*
-            当たり判定の中心
-            HitCenterがあればそこ
-            無ければEnemy自身の位置
+             当たり判定中心座標
+
+             ・HitCenterTransform はAwakeで確定済み
+             ・Update内で毎回中心を分岐しない
         */
-        Transform Tr = transform;
-
-        Vector3 Center = Tr.position;
-        if (HitCenter != null) Center = HitCenter.position;
-
-        float RadiusSq = HitRadius * HitRadius;
+        Vector3 Center = HitCenterTransform.position;
 
         /*
-            後ろから回す
-            弾側が途中でDestroy/Removeされても事故りにくい
+             敵側の半径
+             弾側半径と足して判定する
+        */
+        float EnemyRadius = HitRadius;
+
+        /*
+             後ろから回す
+
+             ・弾側が途中でDestroy/Removeされても事故りにくい
+             ・命中した瞬間にDieへ移行する
         */
         for (int i = Bullets.Count - 1; i >= 0; i--)
         {
-            Bullet bt = Bullets[i];
-            if (bt == null) continue;
-
-            Vector3 BulletPos = bt.transform.position;
-            float Sq = (BulletPos - Center).sqrMagnitude;
+            Bullet Bt = Bullets[i];
+            if (Bt == null) continue;
 
             /*
-                当たったら死亡
-                そのフレームで複数判定される必要が無いので break
+                 Bullet側transform参照をローカルに保持する
+
+                 ・Bt.transform.position を何度も書かない（可読性）
+                 ・transformアクセス回数を減らす（軽量化）
+            */
+            Transform BulletTransform = Bt.transform;
+
+            Vector3 BulletPos = BulletTransform.position;
+            float Sq = (BulletPos - Center).sqrMagnitude;
+
+            //================
+            // Radius Merge
+            //================
+
+            /*
+                 弾側の当たり半径を取得する
+
+                 ・チャージ弾ならBt側が大きい半径を持っている想定
+                 ・通常弾ならデフォルト半径のまま
+            */
+            float BulletRadius = Bt.GetHitRadius();
+
+            /*
+                 判定半径を合成する
+
+                 ・「敵の半径」＋「弾の半径」
+                 ・球同士が触れたら命中、という考え方
+            */
+            float Sum = EnemyRadius + BulletRadius;
+            float RadiusSq = Sum * Sum;
+
+            /*
+                 当たったら死亡
+
+                 ・そのフレームで複数判定される必要が無いので break
             */
             if (Sq <= RadiusSq)
             {
-                Die(Tr.position);
+                Die(EnemyTransform.position);
                 break;
             }
         }
@@ -205,25 +322,28 @@ public class EnemyController : MonoBehaviour
     //================
 
     /*
-        死亡開始
+         死亡開始
 
-        ・多重実行を防ぐ（IsDead）
-        ・スコア加算は「倒された瞬間」に1回だけ
-        ・演出はコルーチンで順番に処理する
+         ・多重実行を防ぐ（IsDead）
+         ・スコア加算は「倒された瞬間」に1回だけ
+         ・演出はコルーチンで順番に処理する
     */
-    void Die(Vector3 DiePos)
+    private void Die(Vector3 DiePos)
     {
         if (IsDead) return;
         IsDead = true;
 
         /*
-            スコア加算（敵が倒された瞬間）
-            ScoreManager が無いなら加算できないので何もしない（Startでエラーは出る）
+             スコア加算（倒された瞬間）
+
+             ・ScoreManagerが無いなら加算できない
+             ・Startでエラーを出しているので、ここでは落とさない
         */
         if (ScoreManager != null) ScoreManager.AddKillScore();
 
         /*
-            敵被弾SEはマネージャーに任せる（居れば）
+             敵被弾SEはマネージャー側に任せる
+             （居れば鳴らす、居なければ何もしない）
         */
         if (EnemyHitSEManager.Instance != null) EnemyHitSEManager.Instance.PlayEnemyHit();
 
@@ -239,13 +359,16 @@ public class EnemyController : MonoBehaviour
     //================
 
     /*
-        この敵のAudioSourceで鳴らす単発SE
-        （いまはEnemyHitSEManager側で鳴らす想定なので未使用でもOK）
+         この敵のAudioSourceで鳴らす単発SE
+         （いまはEnemyHitSEManager側で鳴らす想定なので未使用でもOK）
     */
-    void PlayHitOneShot(Vector3 Pos)
+    private void PlayHitOneShot(Vector3 Pos)
     {
         if (HitOneShot == null) return;
 
+        /*
+             SeSourceが無い場合は、ワンショットの簡易再生に逃がす
+        */
         if (SeSource == null)
         {
             AudioSource.PlayClipAtPoint(HitOneShot, Pos, HitOneShotVolume);
@@ -260,42 +383,44 @@ public class EnemyController : MonoBehaviour
     //================
 
     /*
-        死亡演出の流れ
+         死亡演出の流れ
 
-        1) 当たり判定停止
-        2) 死亡アニメ（あれば）
-        3) 4分割生成 → パーン → エフェクト → 破片消し
-        4) 本体削除（Spawner経由 or Destroy）
+         1) 当たり判定停止（演出中に再ヒットしない）
+         2) 死亡アニメ（あれば）
+         3) 4分割生成 → パーン → エフェクト → 破片消し
+         4) 本体削除（Spawner経由 or Destroy）
     */
-    IEnumerator DeathSequence(Vector3 DiePos)
+    private IEnumerator DeathSequence(Vector3 DiePos)
     {
         //================
-        // 1) 当たり判定停止
+        // 1) Hit Stop
         //================
 
         /*
-            事故防止：当たり判定停止
-            演出中にさらに当たると処理が乱れる
+             事故防止：当たり判定停止
+             演出中にさらに当たると処理が乱れる
         */
         DisableColliders();
 
         //================
-        // 2) 死亡アニメ
+        // 2) Death Animation
         //================
 
         /*
-            死亡アニメ（使うなら）
-            Boolパラメータが無い環境でも落ちないように存在チェックをする
+             死亡アニメ（使うなら）
+             Boolパラメータが無い環境でも落ちないように存在チェックする
         */
         ApplyDeathAnimation();
 
         //================
-        // 3) 4分割の準備
+        // 3) Split Prepare
         //================
 
         /*
-            Spriteが無い場合は分割演出をせず
-            すぐエフェクト → 削除へ
+             Spriteが無い場合は分割演出を行わない
+
+             ・分割できない環境でもゲームが止まらない設計
+             ・エフェクトだけ出して本体削除へ
         */
         if (!CanSplitSprite())
         {
@@ -305,14 +430,23 @@ public class EnemyController : MonoBehaviour
         }
 
         /*
-            カットした4分割を生成
-            Atlas/Packing環境でも崩れにくい（textureRectを使う）
+             Spriteを実際に4分割して破片を生成する
+
+             ・Packed/Atlas環境でも崩れにくいよう textureRect を使う
+             ・生成に失敗した場合もゲームが止まらない設計にする
         */
         GameObject PiecesRoot;
         Transform[] Pieces;
         Vector3[] BaseLocalPos;
 
-        bool DidSplit = TrySpawnRuntimePiecesRealCut(TargetRenderer, out PiecesRoot, out Pieces, out BaseLocalPos);
+        bool DidSplit =
+            TrySpawnRuntimePiecesRealCut(
+                TargetRenderer,
+                out PiecesRoot,
+                out Pieces,
+                out BaseLocalPos
+            );
+
         if (!DidSplit)
         {
             SpawnDeathEffect(DiePos);
@@ -321,67 +455,75 @@ public class EnemyController : MonoBehaviour
         }
 
         /*
-            本体を隠す（Rendererだけ消す）
-            破片が見えるように本体を消しておく
+             本体を隠す（Rendererだけ消す）
+
+             ・本体をDestroyすると座標基準が崩れる可能性があるため
+             ・破片は同じ座標系のまま動かしたいのでRendererだけ消す
         */
         TargetRenderer.enabled = false;
 
         //================
-        // 3-1) パーン演出
-        //================
-
-        yield return StartCoroutine(BurstPieces(Pieces, BaseLocalPos));
-
-        //================
-        // 3-2) エフェクト
+        // 3-1) Burst
         //================
 
         /*
-            少し待ってからエフェクト
-            パーン直後に出すと見えづらいので遅らせられるようにしている
+             破片を4方向に飛ばす演出
+             BurstPieces内で距離・回転・イージングを適用する
+        */
+        yield return StartCoroutine(BurstPieces(Pieces, BaseLocalPos));
+
+        //================
+        // 3-2) Effect
+        //================
+
+        /*
+             少し待ってからエフェクト
+
+             ・パーン直後に出すと見えづらい場合があるため
+             ・調整できるようAfterBurstWaitを用意している
         */
         if (AfterBurstWait > 0f) yield return new WaitForSeconds(AfterBurstWait);
         SpawnDeathEffect(DiePos);
 
         //================
-        // 3-3) 破片の後始末
+        // 3-3) Cleanup Pieces
         //================
 
         /*
-            破片を少し残す
-            すぐ消すと気持ちよさが減るので残せるようにしている
+             破片を少し残す
+
+             ・すぐ消すと気持ちよさが減る
+             ・残す時間をPiecesLifeで調整できる
         */
         if (PiecesLife > 0f) yield return new WaitForSeconds(PiecesLife);
 
         if (PiecesRoot != null) Destroy(PiecesRoot);
 
         //================
-        // 4) 本体削除
+        // 4) Kill
         //================
 
         KillSelf();
     }
 
     //================
-    // 補助：Collider演出中にもう一度当たった判定しないための予防線を貼る
+    // Collider Helper
     //================
 
-    void DisableColliders()
+    /*
+         演出中にもう一度当たった判定しないための予防線
+    */
+    private void DisableColliders()
     {
-        // 3D Collider を無効化する
-        Collider Col3d = GetComponent<Collider>();
         if (Col3d != null) Col3d.enabled = false;
-
-        // 2D Collider を無効化する
-        Collider2D Col2d = GetComponent<Collider2D>();
         if (Col2d != null) Col2d.enabled = false;
     }
 
     //================
-    // 補助：Death Animation
+    // Animator Helper
     //================
 
-    void ApplyDeathAnimation()
+    private void ApplyDeathAnimation()
     {
         if (Anim == null) return;
 
@@ -393,19 +535,27 @@ public class EnemyController : MonoBehaviour
     }
 
     //================
-    // 補助：Effect
+    // Effect Helper
     //================
 
-    void SpawnDeathEffect(Vector3 Pos)
+    private void SpawnDeathEffect(Vector3 Pos)
     {
         if (EffectManager != null) EffectManager.PlayEffect(Pos);
     }
 
     //================
-    // 補助：Split可否
+    // Split Check
     //================
 
-    bool CanSplitSprite()
+    /*
+         4分割演出が可能か確認する
+
+         ・SpriteRendererが無い
+         ・Spriteが無い
+         ・Textureが無い
+         上記のいずれかなら分割できない
+    */
+    private bool CanSplitSprite()
     {
         if (TargetRenderer == null) return false;
 
@@ -423,19 +573,24 @@ public class EnemyController : MonoBehaviour
     //================
 
     /*
-        4分割破片のパーン演出
+         4分割破片のパーン演出
 
-        ・4方向に飛ばす
-        ・回転も加える
-        ・easeOutCubicで「最初速く、最後ゆっくり」にして気持ちよくする
+         【挙動】
+         ・4方向に飛ばす
+         ・回転も加える
+         ・easeOutCubicで「最初速く、最後ゆっくり」にする
     */
-    IEnumerator BurstPieces(Transform[] Pieces, Vector3[] BaseLocalPos)
+    private IEnumerator BurstPieces(Transform[] Pieces, Vector3[] BaseLocalPos)
     {
         if (Pieces == null) yield break;
         if (BaseLocalPos == null) yield break;
         if (Pieces.Length < 4) yield break;
         if (BaseLocalPos.Length < 4) yield break;
 
+        /*
+             4方向（左上／右上／左下／右下）
+             normalizedで方向ベクトルとして使う
+        */
         Vector3[] Dirs =
         {
             new Vector3(-1f,  1f, 0f).normalized,
@@ -444,6 +599,10 @@ public class EnemyController : MonoBehaviour
             new Vector3( 1f, -1f, 0f).normalized,
         };
 
+        /*
+             元の回転を保存して、そこから回転を加算する
+             （破片がすでに回転している環境でも破綻しにくい）
+        */
         Quaternion[] BaseRot = new Quaternion[4];
         for (int i = 0; i < 4; i++) BaseRot[i] = Pieces[i].localRotation;
 
@@ -458,12 +617,24 @@ public class EnemyController : MonoBehaviour
             if (Rate < 0f) Rate = 0f;
             if (Rate > 1f) Rate = 1f;
 
+            /*
+                 easeOutCubic
+                 最初が速く、最後がゆっくりになる
+            */
             float Ease = 1f - Mathf.Pow(1f - Rate, 3f);
 
             for (int i = 0; i < 4; i++)
             {
+                /*
+                     位置：初期位置 + 方向 * 距離 * Ease
+                     Easeにより「最初に勢いよく飛ぶ」見た目になる
+                */
                 Pieces[i].localPosition = BaseLocalPos[i] + Dirs[i] * (BurstDistance * Ease);
 
+                /*
+                     回転：左右で回転方向を変える
+                     ・iが奇数のとき回転方向を反転する
+                */
                 float Sign = 1f;
                 if (i % 2 != 0) Sign = -1f;
 
@@ -479,13 +650,22 @@ public class EnemyController : MonoBehaviour
     //================
 
     /*
-        Spriteを「textureRect」で本当に4分割して生成する
+         Spriteを「textureRect」を使って実際に4分割して生成する
 
-        ・Packed/Atlas環境でもズレにくい
-        ・4つのSpriteRendererを子として生成する
-        ・BurstPiecesで動かしやすいように root + 4つのpieceを返す
+         【目的】
+         ・死亡時に「割れる演出」を行うため、破片用Spriteを生成する
+
+         【やっていること】
+         1) 元SpriteのtextureRectを4分割する矩形を作る
+         2) Sprite.Createで各矩形からSpriteを作る
+         3) Rootを作って破片を子にぶら下げる
+         4) 破片の初期位置（BaseLocalPos）を返してBurstで使う
+
+         【注意】
+         ・Packed/Atlas環境でもズレにくいよう textureRect を使う
+         ・失敗した場合は false を返す（演出をスキップできる）
     */
-    bool TrySpawnRuntimePiecesRealCut(
+    private bool TrySpawnRuntimePiecesRealCut(
         SpriteRenderer Src,
         out GameObject Root,
         out Transform[] Pieces,
@@ -496,6 +676,17 @@ public class EnemyController : MonoBehaviour
         Pieces = null;
         BaseLocalPos = null;
 
+        //================
+        // Validate Source
+        //================
+
+        /*
+             分割に必要な情報が揃っているかチェックする
+
+             ・Srcが無い → 分割できない
+             ・Spriteが無い → 分割できない
+             ・Textureが無い → 分割できない
+        */
         if (Src == null) return false;
 
         Sprite sp = Src.sprite;
@@ -504,11 +695,25 @@ public class EnemyController : MonoBehaviour
         Texture2D Tex = sp.texture;
         if (Tex == null) return false;
 
+        //================
+        // Calculate Split Rects
+        //================
+
+        /*
+             textureRectを使って4分割する矩形を作る
+
+             ・textureRectは「テクスチャ内でこのSpriteが使っている領域」
+             ・Atlas/Pack時でも正しい領域を切り出せる
+        */
         Rect tr = sp.textureRect;
 
         float HalfW = tr.width * 0.5f;
         float HalfH = tr.height * 0.5f;
 
+        /*
+             4分割の矩形
+             （左下／右下／左上／右上）の順で作る
+        */
         Rect[] Rects =
         {
             new Rect(tr.xMin,         tr.yMin,         HalfW, HalfH),
@@ -517,18 +722,45 @@ public class EnemyController : MonoBehaviour
             new Rect(tr.xMin + HalfW, tr.yMin + HalfH, HalfW, HalfH),
         };
 
+        /*
+             Sprite.Createに渡す基本情報
+             ・Pivotは中心（0.5,0.5）
+             ・Ppuは元Spriteの値を引き継ぐ（サイズがズレないように）
+        */
         Vector2 Pivot = new Vector2(0.5f, 0.5f);
         float Ppu = sp.pixelsPerUnit;
 
+        //================
+        // Create Root
+        //================
+
+        /*
+             破片をまとめるRootを生成する
+
+             ・破片を一括でDestroyしやすくする
+             ・Enemy配下に置くことで同じ座標系で動かせる
+        */
         Root = new GameObject($"{Src.gameObject.name}_Pieces");
-        Root.transform.SetParent(Src.transform, false);
-        Root.transform.localPosition = Vector3.zero;
-        Root.transform.localRotation = Quaternion.identity;
-        Root.transform.localScale = Vector3.one;
+
+        Transform RootTransform = Root.transform;
+        RootTransform.SetParent(Src.transform, false);
+        RootTransform.localPosition = Vector3.zero;
+        RootTransform.localRotation = Quaternion.identity;
+        RootTransform.localScale = Vector3.one;
 
         Pieces = new Transform[4];
         BaseLocalPos = new Vector3[4];
 
+        //================
+        // Calculate Offsets
+        //================
+
+        /*
+             破片の初期配置位置を計算する
+
+             ・Spriteのbounds（ワールド単位）から大きさを取る
+             ・中央から4方向に少しずらして配置する
+        */
         Vector3 Ext = sp.bounds.extents;
 
         Vector3[] Offsets =
@@ -540,18 +772,49 @@ public class EnemyController : MonoBehaviour
         };
 
         /*
-            BurstPiecesの方向配列は「LU,RU,LD,RD」順で動かすので
-            生成した4分割の順番を合わせるためにマップする
+             BurstPiecesの方向配列は「左上・右上・左下・右下」順で動かす
+             Rects/Offsetsは「左下・右下・左上・右上」順なので対応付けが必要
         */
         int[] Map = { 2, 3, 0, 1 };
 
+        //================
+        // Copy Sort Settings
+        //================
+
+        /*
+             Sorting設定を元Rendererからコピーする
+
+             ・破片は本体より前に出したいので sortingOrder を +1 する
+        */
         int SortingLayerId = Src.sortingLayerID;
         int SortingOrder = Src.sortingOrder;
 
+        //================
+        // Create Pieces
+        //================
+
+        /*
+             4つの破片を生成する
+
+             ・Sprite.Createで切り出しSpriteを生成する
+             ・Rootの子として配置する
+             ・Renderer設定を元から引き継ぐ
+             ・Burst用のTransform/初期位置を保存する
+        */
         for (int i = 0; i < 4; i++)
         {
             int Idx = Map[i];
 
+            //================
+            // Create Sprite
+            //================
+
+            /*
+                 指定矩形からSpriteを生成する
+
+                 ・例外が出る環境があるため try/catch で安全に失敗させる
+                 ・失敗したらRootを消してfalseを返す
+            */
             Sprite PieceSprite;
             try
             {
@@ -564,26 +827,71 @@ public class EnemyController : MonoBehaviour
                 return false;
             }
 
+            //================
+            // Create Object
+            //================
+
+            /*
+                 破片オブジェクトを生成する
+
+                 ・Transformはローカル変数に保持して何度も呼ばない
+                 ・Root配下にして同じ座標系で扱う
+            */
             GameObject Go = new GameObject($"Piece_{i}");
-            //transformをここでていぎしておけば下のtransformを定義しないで済む
-            Go.transform.SetParent(Root.transform, false);
-            Go.transform.localPosition = Offsets[Idx];
-            Go.transform.localRotation = Quaternion.identity;
-            Go.transform.localScale = Vector3.one;
 
-            //srを三回定義しているから無駄な処理が走っている
-            SpriteRenderer sr = Go.AddComponent<SpriteRenderer>();
-            sr.sprite = PieceSprite;
-            sr.sortingLayerID = SortingLayerId;
-            sr.sortingOrder = SortingOrder + 1;
+            Transform PieceTransform = Go.transform;
+            PieceTransform.SetParent(RootTransform, false);
+            PieceTransform.localPosition = Offsets[Idx];
+            PieceTransform.localRotation = Quaternion.identity;
+            PieceTransform.localScale = Vector3.one;
 
-            sr.color = Src.color;
-            sr.sharedMaterial = Src.sharedMaterial;
-            sr.flipX = Src.flipX;
-            sr.flipY = Src.flipY;
+            //================
+            // Create Renderer
+            //================
 
-            Pieces[i] = Go.transform;
-            BaseLocalPos[i] = Go.transform.localPosition;
+            /*
+                 SpriteRendererを付与して見た目を作る
+            */
+            SpriteRenderer Sr = Go.AddComponent<SpriteRenderer>();
+
+            /*
+                 Spriteを設定する
+                 このSpriteが「切り出した破片の見た目」になる
+            */
+            Sr.sprite = PieceSprite;
+
+            /*
+                 Sortingを設定する
+
+                 ・破片が本体の後ろに回り込まないようにする
+                 ・本体より1つ手前に出す
+            */
+            Sr.sortingLayerID = SortingLayerId;
+            Sr.sortingOrder = SortingOrder + 1;
+
+            /*
+                 元Rendererの見た目設定を引き継ぐ
+
+                 ・本体と破片の見た目がズレないようにするため
+                 ・色／マテリアル／反転状態をコピーする
+            */
+            Sr.color = Src.color;                     // Tint / Alpha（フェード・赤点滅なども引き継ぐ）
+            Sr.sharedMaterial = Src.sharedMaterial;   // Shader / Material（アウトライン等を崩さない）
+            Sr.flipX = Src.flipX;                     // 左右反転（向きを維持）
+            Sr.flipY = Src.flipY;                     // 上下反転（特殊演出対応）
+
+            //================
+            // Save For Burst
+            //================
+
+            /*
+                 BurstPiecesで動かすための情報を保存する
+
+                 ・Pieces        : 動かす対象Transform
+                 ・BaseLocalPos  : パーン開始前の初期位置（基準）
+            */
+            Pieces[i] = PieceTransform;
+            BaseLocalPos[i] = PieceTransform.localPosition;
         }
 
         return true;
@@ -594,14 +902,14 @@ public class EnemyController : MonoBehaviour
     //================
 
     /*
-        敵を消す
+         敵を消す
 
-        ・Spawner管理下なら Spawner.KillSpawned でリストからも消す
-        ・それ以外はDestroy
+         ・Spawner管理下なら Spawner.KillSpawned でリストからも消す
+         ・それ以外はDestroy
     */
-    void KillSelf()
+    private void KillSelf()
     {
-        // Spawner管理なら Spawner 経由で消す
+        // Spawner管理ならSpawner経由で消す
         if (OwnerSpawner != null && MyInstance != null)
         {
             OwnerSpawner.KillSpawned(MyInstance, DestroyDelay);
@@ -609,18 +917,18 @@ public class EnemyController : MonoBehaviour
         }
 
         // 管理外なら通常Destroy
-        Destroy(transform.root.gameObject, DestroyDelay);
+        Destroy(EnemyTransform.root.gameObject, DestroyDelay);
     }
 
     //================
-    // Animator
+    // Animator Helper
     //================
 
     /*
-        Animatorに指定Boolパラメータが存在するかチェック
-        無いパラメータにSetBoolすると警告が出るので保険
+         Animatorに指定Boolパラメータが存在するかチェック
+         無いパラメータにSetBoolすると警告が出るので保険
     */
-    bool HasBoolParameter(Animator Animator, string ParamName)
+    private bool HasBoolParameter(Animator Animator, string ParamName)
     {
         foreach (var p in Animator.parameters)
         {

@@ -44,7 +44,7 @@ public class EnemyHitSEManager : MonoBehaviour
 
     void Awake()
     {
-        // シングルトン：既に存在する場合は自身を破棄
+        // シングルトン 既に存在する場合は自身を破棄
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);

@@ -3,42 +3,74 @@ using UnityEngine;
 
 /*
      弾のマーカーを管理するクラス
-     シーン上に存在するすべての BulletMarker を一覧で管理する
+
+     【主な役割】
+     ・シーン上に存在する「有効なBulletMarker」を一括で記録する
+     ・外部（UIや演出など）が「全マーカー」を参照するために使う
+
+     【設計方針】
+     ・OnEnableで登録し、OnDisableで解除する
+     ・Destroy / Pool返却どちらでも正しく一覧から外れる
+     ・外部からListを直接編集できないように読み取り専用で公開する
 */
-public class BulletMarker : MonoBehaviour
+public sealed class BulletMarker : MonoBehaviour
 {
+    //================
+    // All Markers
+    //================
+
     /*
-         現在「有効な」BulletMarker の一覧
-         ・シーン上に存在するマーカーを一括で参照するために使う
-         ・Disable / Destroy されたものは自動で外れる
+         現在「有効な」BulletMarker一覧（内部管理用）
+
+         ・登録/解除は BulletMarker 自身が行う
+         ・外部がAdd/Removeすると管理が壊れるので private にする
     */
-    public static readonly List<BulletMarker> All = new List<BulletMarker>();
+    private static readonly List<BulletMarker> AllMarkersInternal = new List<BulletMarker>();
+
+    /*
+         外部公開用（読み取り専用）
+
+         ・シーン上のマーカーを一括参照したい側が使う
+         ・IReadOnlyListで返して、外側からAdd/Removeできないようにする
+    */
+    public static IReadOnlyList<BulletMarker> AllMarkers => AllMarkersInternal;
+
 
     //================
     // Unity Event
     //================
 
-    void OnEnable()
+    private void OnEnable()
     {
         /*
              GameObject が有効化された瞬間に呼ばれる
+
              ・生成時
              ・オブジェクトプールから再利用された時
+             上記のタイミングで「シーン上に存在するマーカー」として扱う
         */
 
-        // 二重登録防止
-        if (!All.Contains(this)) All.Add(this);
+        /*
+             二重登録防止
+
+             ・通常はOnEnableが重複しない想定だが
+             ・特殊な有効/無効切り替えや再入の保険として入れている
+        */
+        if (!AllMarkersInternal.Contains(this))
+            AllMarkersInternal.Add(this);
     }
 
-    void OnDisable()
+    private void OnDisable()
     {
         /*
              GameObject が無効化された瞬間に呼ばれる
+
              ・Destroy された時
              ・オブジェクトプールに戻った時
+             上記のタイミングで「シーン上に存在しないマーカー」として扱う
         */
 
-        // 管理リストから除外
-        All.Remove(this);
+        // 管理リストから除外する
+        AllMarkersInternal.Remove(this);
     }
 }

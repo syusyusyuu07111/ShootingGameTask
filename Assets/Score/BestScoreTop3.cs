@@ -1,23 +1,23 @@
 using UnityEngine;
 
-/// <summary>
-/// ベストスコアを上位3つだけ保持する
-/// ルール：
-/// ・空きがあるなら追加して並べ替え
-/// ・3つ埋まってたら「最小（3位）」と比較
-///    - 新スコア <= 最小  → 破棄
-///    - 新スコア >  最小  → 最小を捨てて追加 → 並べ替え
-/// </summary>
+/*
+ ベストスコアを上位3つだけ保持する
+ ルール：
+ ・空きがあるなら追加して並べ替え
+ ・3つ埋まってたら「最小（3位）」と比較
+    - 新スコア <= 最小  → 破棄
+    - 新スコア >  最小  → 最小を捨てて追加 → 並べ替え
+*/
 public static class BestScoreTop3
 {
     const string KEY1 = "BEST_SCORE_1";
     const string KEY2 = "BEST_SCORE_2";
     const string KEY3 = "BEST_SCORE_3";
 
-    /// <summary>
-    /// 現在のTop3を取得（存在しない分は0）
-    /// 常に b1 >= b2 >= b3 の順になるようにして返す
-    /// </summary>
+    /*
+     現在のTop3を取得（存在しない分は0）
+     常に b1 >= b2 >= b3 の順になるようにして返す
+    */
     public static void Get(out int b1, out int b2, out int b3)
     {
         b1 = PlayerPrefs.GetInt(KEY1, 0);
@@ -26,10 +26,10 @@ public static class BestScoreTop3
         SortDesc(ref b1, ref b2, ref b3);
     }
 
-    /// <summary>
+    /*
     /// スコアを登録する（Top3に入る可能性がある時だけ保存される）
     /// 戻り値：Top3に入ったかどうか
-    /// </summary>
+    */
     public static bool TryRegister(int score)
     {
         if (score <= 0) return false;
@@ -90,9 +90,9 @@ public static class BestScoreTop3
         y = tmp;
     }
 
-    /// <summary>
-    /// デバッグ用：ベストスコアを全消し
-    /// </summary>
+    /*
+     デバッグ用：ベストスコアを全消し
+    */
     public static void Clear()
     {
         PlayerPrefs.DeleteKey(KEY1);

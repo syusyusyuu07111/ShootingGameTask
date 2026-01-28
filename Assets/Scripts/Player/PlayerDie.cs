@@ -1,6 +1,5 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
@@ -8,78 +7,113 @@ using TMPro;
 
 /*
      プレイヤーの死亡・ゲームオーバー・タイトル・ポーズを管理する
-     ゲーム状態を1つにまとめて、UI表示と入力の挙動を制御する
+
+     【主な役割】
+     ・ゲーム状態（Title / Playing / GameOver / Stop）を1箇所で管理する
+     ・状態に応じてUI表示と入力の挙動を切り替える
+     ・Playing中のみ死亡判定を行う（敵と距離で判定）
+     ・GameOver演出（スローモ・被ダメ・UI表示）を順番に実行する
+
+     【設計方針】
+     ・状態遷移中の二重操作を防ぐ（IsTransitioning）
+     ・transform参照はキャッシュして、同じ参照を何度も呼ばない
+     ・複雑な処理は工程ごとにコメントで「何をしているか」を固定する
 */
-public class PlayerDie : MonoBehaviour
+public sealed class PlayerDie : MonoBehaviour
 {
     //================
-    // 参照
+    // Reference
     //================
 
-    [SerializeField] private Transform Player;           // プレイヤーのTransform（座標・見た目・参照の起点）
-    [SerializeField] private EnemySpawner Spawner;       // 敵スポナー（敵一覧取得・停止に使う）
+    [SerializeField] private Transform Player;
+    [SerializeField] private EnemySpawner Spawner;
+
 
     //================
-    // 死亡判定
+    // Death Check
     //================
 
-    [SerializeField] private float DieDistance = 1.0f;   // プレイヤーと敵の距離がこの値以下で死亡
+    [SerializeField] private float DieDistance = 1.0f;
+
 
     //================
     // UI
     //================
 
-    public Image GameOverImage;        // ゲームオーバー時に表示する画像
-    public Image TitleImage;           // タイトル画面に表示する画像
+    [Header("Main UI")]
+    [SerializeField] private Image GameOverImage;
+    [SerializeField] private Image TitleImage;
 
     [Header("Pause UI")]
-    [SerializeField] private GameObject PausePanel;      // ポーズ時に表示するパネル
-    [SerializeField] private TMP_Text ResumeText;        // 「再開」テキスト
-    [SerializeField] private TMP_Text TitleBackText;     // 「タイトルへ戻る」テキスト
+    [SerializeField] private GameObject PausePanel;
+    [SerializeField] private TMP_Text ResumeText;
+    [SerializeField] private TMP_Text TitleBackText;
 
-    [SerializeField] private GameObject GameRoot;        // ゲーム本体のルートオブジェクト（ON/OFFでまとめて止める）
+    [Header("Game Root")]
+    [SerializeField] private GameObject GameRoot;
+
 
     //================
     // BEST / SCORE
     //================
 
     [Header("Best Score (Title Only)")]
-    [Tooltip("未設定ならシーンから自動取得（Title状態で Show / それ以外で Hide する）")]
+    [Tooltip("未設定ならシーンから自動取得（Title状態でShow / それ以外でHide）")]
     [SerializeField] private BestScoreUI BestScoreUI;
 
     [Header("Score (Playing Only)")]
-    [Tooltip("未設定ならシーンから自動取得（Playing状態で ShowScore / それ以外で HideScore）")]
+    [Tooltip("未設定ならシーンから自動取得（Playing状態でShowScore / それ以外でHideScore）")]
     [SerializeField] private ScoreManager ScoreManager;
 
-    //================
-    // 入力
-    //================
-
-    InputSystem_Actions Input;
 
     //================
-    // ゲーム状態
+    // Input
     //================
 
-    enum State { Title, Playing, GameOver, Stop }
-    State StateCurrent = State.Title;
+    private InputSystem_Actions Input;
+
+
+    //================
+    // Game State
+    //================
 
     /*
-         状態遷移の途中で入力が入ると二重遷移が起きるのを防ぐ
-         遷移中は true にして、入力イベントを無効にする
+         ゲーム状態
+
+         Title    : タイトル表示中（ゲーム本体停止）
+         Playing  : プレイ中（死亡判定あり）
+         GameOver : ゲームオーバー演出中（入力制限）
+         Stop     : ポーズ中（timeScale=0）
     */
-    bool IsTransitioning = false;
+    private enum State
+    {
+        Title,
+        Playing,
+        GameOver,
+        Stop
+    }
+
+    private State StateCurrent = State.Title;
+
+    /*
+         状態遷移中の二重入力を防ぐ
+         遷移中は true にして入力イベントを無効化する
+    */
+    private bool IsTransitioning = false;
 
     /*
          ポーズ中のメニュー選択
          0:再開
          1:タイトルへ
     */
-    int PauseSelection = 0;
+    private int PauseSelection = 0;
 
-    // テキストの見た目（選択中/通常）
-    readonly Color SelectedColor = Color.red;
-    readonly Color NormalColor = Color.black;
+    /*
+         ポーズUIの色（選択中 / 通常）
+    */
+    private readonly Color SelectedColor = Color.red;
+    private readonly Color NormalColor = Color.black;
+
 
     //================
     // BGM
@@ -89,8 +123,9 @@ public class PlayerDie : MonoBehaviour
     [Tooltip("未設定ならシーンから自動取得")]
     [SerializeField] private BGM_Manager Bgm;
 
+
     //================
-    // SE
+    // SE (One Shot)
     //================
 
     [Header("SE (One Shot)")]
@@ -98,27 +133,19 @@ public class PlayerDie : MonoBehaviour
     [SerializeField] private AudioSource SeSource;
 
     [Header("SE Clips")]
-    [Tooltip("タイトル→ゲーム開始の瞬間に鳴らすSE")]
     [SerializeField] private AudioClip StartGameOneShot;
-
     [Range(0f, 1f)]
     [SerializeField] private float StartGameOneShotVolume = 1.0f;
 
-    [Tooltip("被弾（死亡）した瞬間に鳴らすSE")]
     [SerializeField] private AudioClip HitOneShot;
-
     [Range(0f, 1f)]
     [SerializeField] private float HitOneShotVolume = 1.0f;
 
-    [Tooltip("ポーズに入った瞬間に鳴らすSE")]
     [SerializeField] private AudioClip PauseEnterOneShot;
-
     [Range(0f, 1f)]
     [SerializeField] private float PauseEnterOneShotVolume = 1.0f;
 
-    [Tooltip("ポーズ解除の瞬間のSE")]
     [SerializeField] private AudioClip PauseExitOneShot;
-
     [Range(0f, 1f)]
     [SerializeField] private float PauseExitOneShotVolume = 1.0f;
 
@@ -126,10 +153,11 @@ public class PlayerDie : MonoBehaviour
     [Tooltip("この秒数以内の連続再生は無視（連打防止）")]
     [SerializeField] private float SeMinInterval = 0.03f;
 
-    float LastSePlayTime = -999f;
+    private float LastSePlayTime = -999f;
+
 
     //================
-    // プレイヤー被ダメージ演出
+    // Player Damage Visual
     //================
 
     [Header("Player Damage Visual")]
@@ -142,8 +170,9 @@ public class PlayerDie : MonoBehaviour
     [SerializeField] private float DamageHold = 0.05f;
     [SerializeField] private float DamageFadeDuration = 0.5f;
 
+
     //================
-    // スローモーション演出
+    // Slow Motion
     //================
 
     [Header("Slow Motion")]
@@ -153,8 +182,9 @@ public class PlayerDie : MonoBehaviour
     [Range(0.01f, 1f)]
     [SerializeField] private float SlowMoTimeScale = 0.2f;
 
+
     //================
-    // プレイヤー操作スクリプト
+    // Player Control Scripts
     //================
 
     [Header("Player Control Scripts")]
@@ -164,15 +194,17 @@ public class PlayerDie : MonoBehaviour
     [Tooltip("未設定ならシーン/Playerから自動取得（弾発射側）")]
     [SerializeField] private BulletController BulletController;
 
+
     //================
-    // GameOver演出
+    // GameOver Production
     //================
 
     [Header("Game Over Production")]
     [SerializeField] private float GameOverShowDuration = 3.0f;
 
+
     //================
-    // プレイヤーリセット
+    // Player Reset
     //================
 
     [Header("Player Reset")]
@@ -182,19 +214,33 @@ public class PlayerDie : MonoBehaviour
     [Tooltip("StartGame 時にもリセットする（安全）")]
     [SerializeField] private bool ResetPositionOnStartGame = true;
 
-    Vector3 InitialPlayerPosition;
-    bool HasInitialPlayerPosition = false;
+    private Vector3 InitialPlayerPosition;
+    private bool HasInitialPlayerPosition = false;
 
-    Color InitialPlayerColor;
-    bool HasInitialPlayerColor = false;
+    private Color InitialPlayerColor;
+    private bool HasInitialPlayerColor = false;
 
-    Coroutine GameOverRoutine;
+    private Coroutine GameOverRoutine;
+
+
+    //================
+    // Cache
+    //================
+
+    /*
+         プレイヤーのTransformを保持する
+
+         ・Update内で Player.position を何度も触らない
+         ・未設定ならnullのまま（Startでエラー）
+    */
+    private Transform PlayerTransform;
+
 
     //================
     // Unity Event
     //================
 
-    void Awake()
+    private void Awake()
     {
         /*
              InputSystem_Actions を生成する
@@ -203,11 +249,10 @@ public class PlayerDie : MonoBehaviour
         Input = new InputSystem_Actions();
     }
 
-    void OnEnable()
+    private void OnEnable()
     {
         /*
-             UIマップを有効化（操作対象をUIに固定）
-             ボタンが押されたらイベントで処理する
+             UIマップを有効化
         */
         Input.UI.Enable();
 
@@ -217,11 +262,11 @@ public class PlayerDie : MonoBehaviour
         Input.UI.DownButton.performed += OnTogglePauseSelection;
     }
 
-    void OnDisable()
+    private void OnDisable()
     {
         /*
              イベント解除（解除しないと再Enable時に二重登録になる）
-             停止状態が残らないように、timeScale と操作を復帰する
+             停止状態が残らないように timeScale と操作も復帰する
         */
         Input.UI.Submit.performed -= OnSubmit;
         Input.UI.GameStop.performed -= OnGameStop;
@@ -234,23 +279,32 @@ public class PlayerDie : MonoBehaviour
         EnablePlayerControls();
     }
 
-    void Start()
+    private void Start()
     {
+        //================
+        // Initial UI
+        //================
+
         /*
-             初期状態を Title にする
-             Title表示 / GameRoot停止 / ポーズUI非表示
+             初期状態はTitle
+
+             ・Title表示
+             ・GameRoot停止
+             ・GameOver/ポーズUIは非表示
         */
         if (GameOverImage != null) GameOverImage.enabled = false;
         if (TitleImage != null) TitleImage.enabled = true;
+
         if (PausePanel != null) PausePanel.SetActive(false);
         if (GameRoot != null) GameRoot.SetActive(false);
 
+
         //================
-        // 参照の自動取得
+        // Auto Bind (Scene)
         //================
 
         if (Bgm == null) Bgm = FindFirstObjectByType<BGM_Manager>();
-        if (Bgm == null) Debug.LogError("[PlayerDie] Bgm が未設定です（BGMManager をシーンに配置してください）");
+        if (Bgm == null) Debug.LogError("[PlayerDie] Bgm が未設定です（BGM_Manager をシーンに配置してください）");
 
         if (SeSource == null) SeSource = GetComponent<AudioSource>();
         if (SeSource == null) Debug.LogError("[PlayerDie] SeSource が未設定です（AudioSource を付けてください）");
@@ -266,69 +320,107 @@ public class PlayerDie : MonoBehaviour
         if (Spawner == null) Debug.LogError("[PlayerDie] Spawner が未設定です（EnemySpawner を設定してください）");
         if (GameRoot == null) Debug.LogError("[PlayerDie] GameRoot が未設定です（ゲーム本体のルートを設定してください）");
 
+        PlayerTransform = Player;
+
+
         //================
-        // Player参照の自動取得
+        // Auto Bind (Player)
         //================
 
         AutoBindPlayerRefs();
 
+
         //================
-        // 初期化
+        // Initialize Player
         //================
 
         CacheInitialPlayerColorIfNeeded();
         ResetPlayerVisual();
         EnablePlayerControls();
 
-        CacheInitialPlayerPositionIfNeeded();
+        CacheInitialPlayerPosition();
         ResetPlayerPosition();
+
+
+        //================
+        // Initialize Enemies
+        //================
 
         ResetSpawnerAndEnemies();
 
-        StateCurrent = State.Title;
 
+        //================
+        // State Apply
+        //================
+
+        StateCurrent = State.Title;
         ApplyUiVisibilityForState();
 
         if (Bgm != null) Bgm.PlayTitle();
     }
 
-    void Update()
+    private void Update()
     {
         /*
-             プレイ中のみ死亡判定
+             プレイ中のみ死亡判定を行う
              Title / Stop / GameOver では判定しない
         */
         if (StateCurrent != State.Playing) return;
-        if (Player == null || Spawner == null) return;
+
+        if (PlayerTransform == null) return;
+        if (Spawner == null) return;
+
+        //================
+        // Get Enemies
+        //================
 
         /*
-             Spawner 管理下の敵を取得する
+             Spawner管理下の敵を取得する
              GetSpawnedEnemies() は null を返さない前提
         */
         IReadOnlyList<GameObject> Enemies = Spawner.GetSpawnedEnemies();
+        if (Enemies == null) return;
+
+        //================
+        // Distance Check
+        //================
 
         /*
-             sqrMagnitude で距離判定する
+             sqrMagnitudeで距離判定する
         */
         float DieDistSq = DieDistance * DieDistance;
+
+        Vector3 PlayerPos = PlayerTransform.position;
 
         for (int i = 0; i < Enemies.Count; i++)
         {
             GameObject Enemy = Enemies[i];
             if (Enemy == null) continue;
 
-            if ((Enemy.transform.position - Player.position).sqrMagnitude > DieDistSq) continue;
+            /*
+                 EnemyのTransform参照をローカルに保持する
+
+                 ・Enemy.transform.position を何度も書かない
+                 ・transformアクセス回数を減らす
+            */
+            Transform EnemyTransform = Enemy.transform;
+
+            Vector3 EnemyPos = EnemyTransform.position;
+            float Sq = (EnemyPos - PlayerPos).sqrMagnitude;
+
+            if (Sq > DieDistSq) continue;
 
             OnGameOver();
             break;
         }
     }
 
+
     //================
-    // UI表示制御
+    // UI Visibility
     //================
 
-    void ApplyUiVisibilityForState()
+    private void ApplyUiVisibilityForState()
     {
         /*
              BEST：Titleだけ表示
@@ -349,21 +441,31 @@ public class PlayerDie : MonoBehaviour
         }
     }
 
+
     //================
-    // 入力イベント
+    // Input Events
     //================
 
-    void OnSubmit(InputAction.CallbackContext ctx)
+    private void OnSubmit(InputAction.CallbackContext Ctx)
     {
         if (IsTransitioning) return;
 
         /*
-             Title：ゲーム開始
-             GameOver：タイトルへ
-             Stop：選択中のメニューを実行
+             Title   : ゲーム開始
+             GameOver: タイトルへ
+             Stop    : 選択中のメニューを実行
         */
-        if (StateCurrent == State.Title) { StartGame(); return; }
-        if (StateCurrent == State.GameOver) { ShowTitle(); return; }
+        if (StateCurrent == State.Title)
+        {
+            StartGame();
+            return;
+        }
+
+        if (StateCurrent == State.GameOver)
+        {
+            ShowTitle();
+            return;
+        }
 
         if (StateCurrent == State.Stop)
         {
@@ -372,19 +474,19 @@ public class PlayerDie : MonoBehaviour
         }
     }
 
-    void OnGameStop(InputAction.CallbackContext ctx)
+    private void OnGameStop(InputAction.CallbackContext Ctx)
     {
         if (IsTransitioning) return;
 
         /*
-             Playing：ポーズへ
-             Stop：ポーズ解除へ
+             Playing: ポーズへ
+             Stop   : ポーズ解除へ
         */
         if (StateCurrent == State.Playing) EnterStop();
         else if (StateCurrent == State.Stop) ResumeFromStop();
     }
 
-    void OnTogglePauseSelection(InputAction.CallbackContext ctx)
+    private void OnTogglePauseSelection(InputAction.CallbackContext Ctx)
     {
         /*
              Stop中のみ上下入力で選択切り替え
@@ -395,15 +497,18 @@ public class PlayerDie : MonoBehaviour
         UpdatePauseHighlight();
     }
 
+
     //================
-    // 状態遷移
+    // State Transition
     //================
 
-    void StartGame()
+    private void StartGame()
     {
         /*
              Title → Playing に移行する
-             UI / スコア / プレイヤー / 敵 を初期化して開始する
+
+             ・UI / スコア / プレイヤー / 敵 を初期化して開始する
+             ・遷移中は入力を無効化する
         */
         PlayStartGameOneShot();
 
@@ -423,7 +528,7 @@ public class PlayerDie : MonoBehaviour
         ResetPlayerVisual();
         EnablePlayerControls();
 
-        CacheInitialPlayerPositionIfNeeded();
+        CacheInitialPlayerPosition();
         if (ResetPositionOnStartGame) ResetPlayerPosition();
 
         ResetSpawnerAndEnemies();
@@ -444,7 +549,7 @@ public class PlayerDie : MonoBehaviour
         if (Bgm != null) Bgm.PlayGame();
     }
 
-    void EnterStop()
+    private void EnterStop()
     {
         /*
              Playing → Stop に移行する
@@ -462,7 +567,7 @@ public class PlayerDie : MonoBehaviour
         Time.timeScale = 0f;
     }
 
-    void ResumeFromStop()
+    private void ResumeFromStop()
     {
         /*
              Stop → Playing に戻す
@@ -479,27 +584,35 @@ public class PlayerDie : MonoBehaviour
         ApplyUiVisibilityForState();
     }
 
-    void UpdatePauseHighlight()
+    private void UpdatePauseHighlight()
     {
         /*
              Stop中の選択表示を更新する
+             三項演算子は使わず if で明示する
         */
         if (ResumeText != null)
-            ResumeText.color = PauseSelection == 0 ? SelectedColor : NormalColor;
+        {
+            if (PauseSelection == 0) ResumeText.color = SelectedColor;
+            if (PauseSelection != 0) ResumeText.color = NormalColor;
+        }
 
         if (TitleBackText != null)
-            TitleBackText.color = PauseSelection == 1 ? SelectedColor : NormalColor;
+        {
+            if (PauseSelection == 1) TitleBackText.color = SelectedColor;
+            if (PauseSelection != 1) TitleBackText.color = NormalColor;
+        }
     }
 
+
     //================
-    // ゲームオーバー処理
+    // Game Over
     //================
 
-    void OnGameOver()
+    private void OnGameOver()
     {
         /*
-             Playing 中の死亡判定で呼ぶ
-             GameOver へ遷移して演出を開始する
+             Playing中の死亡判定で呼ぶ
+             GameOverへ遷移して演出を開始する
         */
         if (StateCurrent != State.Playing) return;
 
@@ -527,11 +640,12 @@ public class PlayerDie : MonoBehaviour
         GameOverRoutine = StartCoroutine(DeathFlow());
     }
 
+
     //================
-    // SE再生
+    // SE
     //================
 
-    bool CanPlaySe()
+    private bool CanPlaySe()
     {
         /*
              連打防止：一定時間以内の再生を無視する
@@ -542,12 +656,10 @@ public class PlayerDie : MonoBehaviour
         return true;
     }
 
-    void PlayStartGameOneShot()
+    private void PlayStartGameOneShot()
     {
-        /*
-             タイトル → ゲーム開始のSE
-        */
-        if (StartGameOneShot == null || !CanPlaySe()) return;
+        if (StartGameOneShot == null) return;
+        if (!CanPlaySe()) return;
 
         if (SeSource == null)
         {
@@ -558,12 +670,10 @@ public class PlayerDie : MonoBehaviour
         SeSource.PlayOneShot(StartGameOneShot, StartGameOneShotVolume);
     }
 
-    void PlayPauseEnterOneShot()
+    private void PlayPauseEnterOneShot()
     {
-        /*
-             ポーズに入った瞬間のSE
-        */
-        if (PauseEnterOneShot == null || !CanPlaySe()) return;
+        if (PauseEnterOneShot == null) return;
+        if (!CanPlaySe()) return;
 
         if (SeSource == null)
         {
@@ -574,12 +684,10 @@ public class PlayerDie : MonoBehaviour
         SeSource.PlayOneShot(PauseEnterOneShot, PauseEnterOneShotVolume);
     }
 
-    void PlayPauseExitOneShot()
+    private void PlayPauseExitOneShot()
     {
-        /*
-             ポーズ解除の瞬間のSE
-        */
-        if (PauseExitOneShot == null || !CanPlaySe()) return;
+        if (PauseExitOneShot == null) return;
+        if (!CanPlaySe()) return;
 
         if (SeSource == null)
         {
@@ -590,12 +698,10 @@ public class PlayerDie : MonoBehaviour
         SeSource.PlayOneShot(PauseExitOneShot, PauseExitOneShotVolume);
     }
 
-    void PlayHitOneShot()
+    private void PlayHitOneShot()
     {
-        /*
-             被弾（死亡）した瞬間のSE
-        */
-        if (HitOneShot == null || !CanPlaySe()) return;
+        if (HitOneShot == null) return;
+        if (!CanPlaySe()) return;
 
         if (SeSource == null)
         {
@@ -606,15 +712,21 @@ public class PlayerDie : MonoBehaviour
         SeSource.PlayOneShot(HitOneShot, HitOneShotVolume);
     }
 
+
     //================
-    // 死亡演出（コルーチン）
+    // Death Flow
     //================
 
-    IEnumerator DeathFlow()
+    private IEnumerator DeathFlow()
     {
         /*
              死亡演出を順番に実行する
-             スローモーション → 被ダメ色 → BGM切替 → GameOver表示
+
+             1) スローモーション（任意）
+             2) 被ダメ色 → フェード（任意）
+             3) GameOverBGMへ
+             4) ゲーム本体を停止
+             5) GameOverUIを表示してTitleへ戻す
         */
         if (EnableSlowMotion) yield return StartCoroutine(PlaySlowMotion());
         if (PlayerRenderer != null) yield return StartCoroutine(PlayPlayerDamageFade(PlayerRenderer));
@@ -626,7 +738,7 @@ public class PlayerDie : MonoBehaviour
         yield return StartCoroutine(GameOverSequence());
     }
 
-    IEnumerator PlaySlowMotion()
+    private IEnumerator PlaySlowMotion()
     {
         /*
              一定時間だけ timeScale を下げる
@@ -646,19 +758,24 @@ public class PlayerDie : MonoBehaviour
         Time.fixedDeltaTime = PrevFixed;
     }
 
-    IEnumerator PlayPlayerDamageFade(SpriteRenderer sr)
+    private IEnumerator PlayPlayerDamageFade(SpriteRenderer Sr)
     {
         /*
              プレイヤーの色を赤くして、一定時間後に透明へフェードする
+
+             ・赤くする強さ：DamageRedStrength
+             ・赤の保持時間：DamageHold
+             ・フェード時間  ：DamageFadeDuration
         */
         CacheInitialPlayerColorIfNeeded();
 
-        Color BaseColor = HasInitialPlayerColor ? InitialPlayerColor : sr.color;
+        Color BaseColor = Sr.color;
+        if (HasInitialPlayerColor) BaseColor = InitialPlayerColor;
 
         Color RedColor = Color.Lerp(BaseColor, Color.red, DamageRedStrength);
         RedColor.a = BaseColor.a;
 
-        sr.color = RedColor;
+        Sr.color = RedColor;
 
         if (DamageHold > 0f) yield return new WaitForSecondsRealtime(DamageHold);
 
@@ -674,17 +791,17 @@ public class PlayerDie : MonoBehaviour
             Color c = RedColor;
             c.a = Mathf.Lerp(BaseColor.a, 0f, a);
 
-            sr.color = c;
+            Sr.color = c;
 
             yield return null;
         }
 
-        Color End = sr.color;
+        Color End = Sr.color;
         End.a = 0f;
-        sr.color = End;
+        Sr.color = End;
     }
 
-    IEnumerator GameOverSequence()
+    private IEnumerator GameOverSequence()
     {
         /*
              GameOver UI を表示して一定時間待つ
@@ -708,15 +825,18 @@ public class PlayerDie : MonoBehaviour
         if (Bgm != null) Bgm.PlayTitle();
     }
 
+
     //================
-    // Titleへ戻す
+    // Back To Title
     //================
 
-    void ShowTitle()
+    private void ShowTitle()
     {
         /*
-             Title 状態へ戻す
-             プレイヤー/敵/表示を初期化する
+             Title状態へ戻す
+
+             ・プレイヤー/敵/表示を初期化する
+             ・timeScaleは必ず戻す
         */
         StateCurrent = State.Title;
 
@@ -730,7 +850,7 @@ public class PlayerDie : MonoBehaviour
 
         EnablePlayerControls();
 
-        CacheInitialPlayerPositionIfNeeded();
+        CacheInitialPlayerPosition();
         ResetPlayerPosition();
 
         ResetSpawnerAndEnemies();
@@ -744,27 +864,34 @@ public class PlayerDie : MonoBehaviour
         if (Bgm != null) Bgm.PlayTitle();
     }
 
+
     //================
-    // 敵リセット
+    // Enemy Reset
     //================
 
-    void ResetSpawnerAndEnemies()
+    private void ResetSpawnerAndEnemies()
     {
         /*
              Spawnerを止めて、管理下の敵を全て破棄する
-             破棄中にリストが変わる事故を避けるため、Snapshotを作る
+
+             【注意】
+             ・破棄中にSpawner側のListが変わる可能性がある
+             ・安全のため Snapshot（配列コピー）を作ってからDestroyする
         */
         if (Spawner == null) return;
 
         Spawner.StopSpawn();
         Spawner.enabled = false;
 
-        /*
-             GetSpawnedEnemies() は null を返さない前提
-        */
         IReadOnlyList<GameObject> Enemies = Spawner.GetSpawnedEnemies();
+        if (Enemies == null) return;
 
-        GameObject[] Snapshot = Enemies.ToArray();
+        int Count = Enemies.Count;
+        GameObject[] Snapshot = new GameObject[Count];
+
+        for (int i = 0; i < Count; i++)
+            Snapshot[i] = Enemies[i];
+
         for (int i = 0; i < Snapshot.Length; i++)
         {
             GameObject e = Snapshot[i];
@@ -773,11 +900,12 @@ public class PlayerDie : MonoBehaviour
         }
     }
 
+
     //================
-    // プレイヤー操作ON/OFF
+    // Player Control ON/OFF
     //================
 
-    void DisablePlayerControls()
+    private void DisablePlayerControls()
     {
         /*
              死亡中は入力と弾発射を止める
@@ -786,7 +914,7 @@ public class PlayerDie : MonoBehaviour
         if (BulletController != null) BulletController.ControlEnabled = false;
     }
 
-    void EnablePlayerControls()
+    private void EnablePlayerControls()
     {
         /*
              通常状態に戻す
@@ -795,82 +923,96 @@ public class PlayerDie : MonoBehaviour
         if (BulletController != null) BulletController.ControlEnabled = true;
     }
 
+
     //================
-    // Player参照の自動取得
+    // Auto Bind Player Refs
     //================
 
-    void AutoBindPlayerRefs()
+    private void AutoBindPlayerRefs()
     {
         /*
              Player配下から参照を取得する
              非アクティブも対象にして、Title中でも拾えるようにする
         */
-        if (PlayerRenderer == null && Player != null)
-            PlayerRenderer = Player.GetComponentInChildren<SpriteRenderer>(true);
+        if (PlayerTransform == null) PlayerTransform = Player;
 
-        if (PlayerController == null && Player != null)
-            PlayerController = Player.GetComponentInChildren<PlayerController>(true);
+        if (PlayerRenderer == null && PlayerTransform != null)
+            PlayerRenderer = PlayerTransform.GetComponentInChildren<SpriteRenderer>(true);
 
-        if (BulletController == null && Player != null)
-            BulletController = Player.GetComponentInChildren<BulletController>(true);
+        if (PlayerController == null && PlayerTransform != null)
+            PlayerController = PlayerTransform.GetComponentInChildren<PlayerController>(true);
+
+        if (BulletController == null && PlayerTransform != null)
+            BulletController = PlayerTransform.GetComponentInChildren<BulletController>(true);
     }
 
+
     //================
-    // プレイヤー位置リセット
+    // Player Position Reset
     //================
 
-    void CacheInitialPlayerPositionIfNeeded()
+    private void CacheInitialPlayerPosition()
     {
         /*
              初期位置を1回だけ記録する
         */
-        if (HasInitialPlayerPosition || Player == null) return;
+        if (HasInitialPlayerPosition) return;
+        if (PlayerTransform == null) return;
 
-        InitialPlayerPosition = Player.position;
+        InitialPlayerPosition = PlayerTransform.position;
         HasInitialPlayerPosition = true;
     }
 
-    void ResetPlayerPosition()
+    private void ResetPlayerPosition()
     {
         /*
              プレイヤー位置を戻す
-             SpawnPointがあればそこへ、なければ初期位置へ戻す
+
+             ・SpawnPointがあればそこへ戻す
+             ・無ければ初期位置へ戻す
         */
-        if (Player == null) return;
+        if (PlayerTransform == null) return;
 
         if (PlayerSpawnPoint != null)
         {
-            Player.position = PlayerSpawnPoint.position;
+            PlayerTransform.position = PlayerSpawnPoint.position;
             return;
         }
 
-        if (HasInitialPlayerPosition) Player.position = InitialPlayerPosition;
+        if (HasInitialPlayerPosition)
+            PlayerTransform.position = InitialPlayerPosition;
     }
 
+
     //================
-    // プレイヤー色リセット
+    // Player Visual Reset
     //================
 
-    void CacheInitialPlayerColorIfNeeded()
+    private void CacheInitialPlayerColorIfNeeded()
     {
         /*
              初期色を1回だけ記録する
         */
-        if (HasInitialPlayerColor || PlayerRenderer == null) return;
+        if (HasInitialPlayerColor) return;
+        if (PlayerRenderer == null) return;
 
         InitialPlayerColor = PlayerRenderer.color;
         HasInitialPlayerColor = true;
     }
 
-    void ResetPlayerVisual()
+    private void ResetPlayerVisual()
     {
         /*
              プレイヤー表示を通常状態へ戻す
-             alphaが0のままだと見えない事故になるので保険を入れる
+
+             ・alphaが0のままだと見えない事故になる
+             ・念のため alpha は 1 に戻す
         */
         if (PlayerRenderer == null) return;
 
-        Color c = HasInitialPlayerColor ? InitialPlayerColor : PlayerRenderer.color;
+        Color c = PlayerRenderer.color;
+        if (HasInitialPlayerColor) c = InitialPlayerColor;
+
         if (c.a <= 0f) c.a = 1f;
 
         PlayerRenderer.color = c;

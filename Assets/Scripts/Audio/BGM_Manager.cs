@@ -84,7 +84,7 @@ public class BGM_Manager : MonoBehaviour
     {
         if (BgmSource == null) return;
 
-        // 未設定クリップは何もしない（安全策）
+        // 未設定クリップは何もしない
         if (Clip == null)
         {
             Debug.LogError("[BGMManager] AudioClip が未設定です");
@@ -130,16 +130,10 @@ public class BGM_Manager : MonoBehaviour
             float Rate = Mathf.Clamp01(t / Dur);
 
             // 【Mathf.Lerp(A,B,rate)】
-            // ・rate=0 → A
-            // ・rate=1 → B
-            // ・途中は線形でなめらかに変化
-            // ここでは「startVol → 0」へ向かって音量を少しずつ下げる
+            // 「startVol → 0」へ向かって音量を少しずつ下げる
             BgmSource.volume = Mathf.Lerp(StartVol, 0f, Rate);
 
-            // 【yield return null】
-            // ・この行で一旦処理が止まる
-            // ・次のフレームで while の続きから再開される
-            // ＝「フレームごとに音量が変化する」＝フェードになる
+
             yield return null;
         }
 
@@ -213,7 +207,7 @@ public class BGM_Manager : MonoBehaviour
         // 【Stop】再生を止めるだけ（volumeはそのままなので、上で0にしてから止めている）
         BgmSource.Stop();
 
-        // clipをnullにすることで「何も再生していない状態」を明確化
+        // clipをnullにすることで「何も再生していない状態」にする
         // （あとで bgmSource.clip == clip の判定にも影響してくる）
         BgmSource.clip = null;
 

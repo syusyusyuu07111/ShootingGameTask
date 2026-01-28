@@ -3,63 +3,79 @@ using UnityEngine;
 
 /*
      一定時間後にオブジェクトを消すためのクラス
-     ・弾の寿命管理に使う
-     ・一定時間後に自動で消す
-     ・PoolManager が設定されていればプールに返却する
-     ・PoolManager が無ければ通常の Destroy を行う
 
-     【オブジェクトプールについて】
-     あらかじめ一定数のオブジェクトを作っておき、
-     使い終わったら非アクティブ化して再利用する仕組み
-     PoolManager はこの仕組みを管理するクラス
+     ・寿命タイマーが切れたら
+       PoolManager があればプールに返却
+       無ければ Destroy する
 */
-public class Destroyer : MonoBehaviour
+public sealed class Destroyer : MonoBehaviour
 {
-    /*
-         オブジェクトプール管理者
-         ・設定されていれば Destroy せずプールに戻す
-         ・未設定なら通常の Destroy を行う
-    */
-    public PoolManager PoolManager { get; set; }
-
-    /*
-         現在動作中の破棄タイマー
-         ・StartDestroyTimer が複数回呼ばれても
-           タイマーが多重起動しないように管理する
-    */
-    Coroutine Routine;
-
     //================
-    // 公開処理
+    // Pool Reference
     //================
 
-    public void StartDestroyTimer(float Time)
+    private PoolManager OwnerPool;
+
+    //================
+    // Routine
+    //================
+
+    private Coroutine LifeRoutine;
+
+    //================
+    // Public
+    //================
+
+    /*
+         PoolManager を設定する
+    */
+    public void SetPoolManager(PoolManager Pool)
     {
-        /*
-             すでにタイマーが動いている場合は一度止める
-             ・多重起動防止
-             ・寿命のリセット目的
-        */
-        if (Routine != null) StopCoroutine(Routine);
+        OwnerPool = Pool;
+    }
 
-        // 新しい破棄タイマーを開始する
-        Routine = StartCoroutine(DestroyTimer(Time));
+    /*
+         寿命タイマーを開始（またはリセット）する
+    */
+    public void StartDestroyTimer(float LifeTimeSeconds)
+    {
+        if (LifeTimeSeconds <= 0f)
+        {
+            Debug.LogError($"[Destroyer] LifeTimeSeconds が不正です life={LifeTimeSeconds} name={name}");
+            return;
+        }
+
+        if (LifeRoutine != null) StopCoroutine(LifeRoutine);
+
+        LifeRoutine = StartCoroutine(LifeTimer(LifeTimeSeconds));
     }
 
     //================
-    // 内部処理
+    // Unity Event
     //================
 
-    IEnumerator DestroyTimer(float Time)
+    private void OnDisable()
     {
-        // 指定時間待機する
-        yield return new WaitForSeconds(Time);
+        /*
+             プール返却（非アクティブ化）でも呼ばれるので参照をリセットする
+        */
+        LifeRoutine = null;
+    }
 
-        // PoolManager が設定されているかどうかで処理を分ける
-        if (PoolManager != null) PoolManager.ReleaseGameObject(gameObject);
-        else Destroy(gameObject);
+    //================
+    // Internal
+    //================
 
-        // タイマー終了（次回に備えてリセット）
-        Routine = null;
+    private IEnumerator LifeTimer(float LifeTimeSeconds)
+    {
+        yield return new WaitForSeconds(LifeTimeSeconds);
+
+        if (OwnerPool != null)
+        {
+            OwnerPool.ReleaseGameObject(gameObject);
+            yield break;
+        }
+
+        Destroy(gameObject);
     }
 }
