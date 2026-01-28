@@ -588,7 +588,6 @@ public sealed class PlayerDie : MonoBehaviour
     {
         /*
              Stop中の選択表示を更新する
-             三項演算子は使わず if で明示する
         */
         if (ResumeText != null)
         {
